@@ -12,16 +12,20 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
 const GAME_ADDRESS = new PublicKey("4DcJZNe1C4YGsj8yuVyCe9UHcF1SG2Z7Uffp6MUvrBdF");
 
-// ⚠️ THAY 3 LINK VIDEO CỦA BẠN VÀO ĐÂY (Lấy từ Catbox.moe)
-const VIDEO_NORMAL = "https://files.catbox.moe/699hyi.mp4"; 
-const VIDEO_DAMAGED = "https://files.catbox.moe/jj5nc0.mp4";
-const VIDEO_DEFEATED = "https://files.catbox.moe/3hcgvw.mp4";
+// --- URL HÌNH ẢNH & VIDEO ---
+const VIDEO_NORMAL = "https://files.catbox.moe/699hyi.mp4"; // *Lưu ý: Bạn đang dùng link mp3 cho video? Hãy chắc chắn đây là link .mp4 nhé. Nếu không có mp4, web sẽ hiện màn hình đen. Hãy thay đúng link video vào.*
+// Để code chạy test, mình sẽ để tạm link video mẫu, bạn nhớ thay lại link của bạn:
+// const VIDEO_NORMAL = "https://files.catbox.moe/699hyi.mp4";
+// const VIDEO_DAMAGED = "https://files.catbox.moe/jj5nc0.mp4";
+// const VIDEO_DEFEATED = "https://files.catbox.moe/3hcgvw.mp4";
 
-// --- URL HÌNH ẢNH (Giữ nguyên) ---
+// (Code dưới đây giả định bạn đã có 3 link video khác nhau. Nếu 3 video giống nhau thì hiệu ứng chuyển sẽ không rõ)
+const V_NORMAL = "https://files.catbox.moe/link_video_khoe.mp4"; // Thay link thật
+const V_HURT   = "https://files.catbox.moe/link_video_dau.mp4";  // Thay link thật
+const V_DEAD   = "https://files.catbox.moe/link_video_chet.mp4";  // Thay link thật
+
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
-
-// --- URL ÂM THANH ---
 const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 
 const styles = `
@@ -30,15 +34,24 @@ const styles = `
 
   body { margin: 0; background: #000; overflow: hidden; touch-action: none; }
   
+  /* ANIMATION CÚ ĐẤM */
   @keyframes punch-loop {
     0% { transform: translateX(0) scale(1); }
     20% { transform: translateX(30px) scale(0.9); } 
-    40% { transform: translateX(-180px) scale(1.1); } 
+    35% { transform: translateX(-220px) scale(1.15); } /* Đấm sâu hơn */
     100% { transform: translateX(0) scale(1); }
   }
 
-  @keyframes screen-shake-light { 0% { transform: translate(0, 0); } 25% { transform: translate(-3px, 3px); } 75% { transform: translate(3px, -3px); } 100% { transform: translate(0, 0); } }
-  @keyframes screen-shake-strong { 0% { transform: translate(0, 0); } 20% { transform: translate(-7px, 7px); } 40% { transform: translate(7px, -7px); } 60% { transform: translate(-7px, 7px); } 80% { transform: translate(7px, -7px); } 100% { transform: translate(0, 0); } }
+  /* HIỆU ỨNG RUNG CÓ LỰC (IMPACT SHAKE) */
+  @keyframes shake-impact {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    10% { transform: translate(-5px, -5px) rotate(-1deg); }
+    20% { transform: translate(8px, 8px) rotate(1deg) scale(1.02); } /* Phóng to nhẹ tạo lực */
+    30% { transform: translate(-8px, 5px) rotate(-1deg); }
+    40% { transform: translate(5px, -8px) rotate(1deg); }
+    50% { transform: translate(-2px, 2px) rotate(0deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+  }
 
   .game-wrapper {
     position: relative; width: 100vw; height: 100vh; overflow: hidden;
@@ -48,16 +61,19 @@ const styles = `
   /* VIDEO NỀN */
   .bg-video {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; /* Video phủ kín màn hình */
+    object-fit: cover; 
     z-index: 0;
-    filter: brightness(0.6); /* Làm tối video để nổi bật nút bấm */
-    transition: opacity 0.5s ease-in-out;
+    filter: brightness(0.6);
+    transition: filter 0.1s; /* Chớp sáng nhanh hơn */
   }
 
-  .bg-hit-light { animation: screen-shake-light 0.3s ease-out; }
-  .bg-hit-strong { animation: screen-shake-strong 0.4s ease-in-out; filter: hue-rotate(-20deg) contrast(1.2); }
+  /* Kích hoạt rung khi có class này */
+  .is-shaking {
+    animation: shake-impact 0.4s cubic-bezier(.36,.07,.19,.97) both;
+    filter: brightness(1.2) sepia(0.5) hue-rotate(-50deg) !important; /* Chớp đỏ cam */
+  }
 
-  /* RESPONSIVE LAYERS */
+  /* HERO & FIST */
   .hero-layer {
     position: absolute; right: 2%; bottom: 20%; width: 25%; max-width: 300px; 
     z-index: 4; filter: drop-shadow(0 0 20px #00e5ff); pointer-events: none;
@@ -68,12 +84,26 @@ const styles = `
     filter: drop-shadow(0 0 15px #00e5ff);
   }
 
+  /* --- MOBILE OPTIMIZATION --- */
   @media (max-width: 768px) {
-    .bg-video { object-position: 65% center; }
-    .fist-layer { width: 70%; bottom: 35%; right: 5%; }
-    .hero-layer { width: 40%; bottom: 25%; right: -10%; }
-    .extra-hud { top: 70px; right: 10px; width: 160px; padding: 8px; font-size: 0.6rem; background: rgba(0,0,0,0.5); }
-    .combat-btn { padding: 15px; font-size: 1.2rem; }
+    /* Đẩy background về bên trái để thấy Boss rõ hơn */
+    .bg-video { object-position: 25% center !important; } 
+
+    .fist-layer { width: 75%; bottom: 35%; right: 5%; }
+    .hero-layer { width: 45%; bottom: 25%; right: -15%; }
+    
+    /* Thu nhỏ bảng xếp hạng tối đa */
+    .extra-hud {
+        top: 80px !important;
+        left: 10px !important; 
+        right: auto !important;
+        width: 150px !important;
+        transform: scale(0.85); /* Thu nhỏ toàn bộ bảng */
+        transform-origin: top left;
+        background: rgba(0,0,0,0.4) !important;
+        border: none !important;
+    }
+    .combat-btn { padding: 18px !important; font-size: 1.3rem !important; }
   }
 
   .hud-overlay {
@@ -94,7 +124,7 @@ const styles = `
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
     box-shadow: 0 0 20px rgba(0, 198, 255, 0.5); letter-spacing: 2px;
   }
-  .combat-btn:active { transform: scale(0.98); background: #fff; color: #000; }
+  .combat-btn:active { transform: scale(0.95); background: #fff; color: #000; }
   
   .btn-loot { background: linear-gradient(90deg, #f1c40f, #f39c12); color: black; animation: pulse 1s infinite; }
   @keyframes pulse { 0% { box-shadow: 0 0 0 #f1c40f; } 100% { box-shadow: 0 0 30px #f1c40f; } }
@@ -123,7 +153,7 @@ function GameContent() {
   const { publicKey } = useWallet();
   const [gameState, setGameState] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [maxTime, setMaxTime] = useState(45);
+  const [maxTime, setMaxTime] = useState(60); 
   const [potBalance, setPotBalance] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const [isHit, setIsHit] = useState(false);
@@ -134,7 +164,6 @@ function GameContent() {
 
   useEffect(() => {
     setIsClient(true);
-    // Init Audio
     audioRef.current = new Audio(AUDIO_BATTLE_THEME);
     audioRef.current.loop = true;
     audioRef.current.volume = 0.5;
@@ -154,7 +183,7 @@ function GameContent() {
       const balance = await connection.getBalance(GAME_ADDRESS);
       setGameState(account);
       setPotBalance(balance / 1000000000); 
-      setMaxTime(account.timeToLive.toNumber() || 45);
+      setMaxTime(account.timeToLive.toNumber() || 60);
       const now = Math.floor(Date.now() / 1000);
       const lastFed = account.lastFedTimestamp.toNumber();
       const ttl = account.timeToLive.toNumber();
@@ -182,25 +211,31 @@ function GameContent() {
   const hpPercent = Math.min(100, (timeLeft / maxTime) * 100);
   const isDead = timeLeft === 0;
 
-  const getShakeClass = () => {
-    if (!isHit) return "";
-    if (hpPercent < 50) return "bg-hit-strong";
-    return "bg-hit-light";
-  };
-
-  // LOGIC CHỌN VIDEO
+  // --- LOGIC CHỌN VIDEO (TRỘN LẪN) ---
   const getCurrentVideo = () => {
-      if (!gameState) return VIDEO_NORMAL;
-      if (isDead) return VIDEO_DEFEATED; 
-      if (hpPercent < 50) return VIDEO_DAMAGED; 
-      return VIDEO_NORMAL; 
+      // 1. Nếu chết -> Hiện video chết
+      if (isDead) return V_DEAD; 
+      
+      // 2. Nếu đang bị đánh (isHit = true) -> Hiện video Đau (tạo cảm giác phản ứng)
+      if (isHit) return V_HURT;
+
+      // 3. Nếu máu thấp < 50% -> Hiện video Đau
+      if (hpPercent < 50) return V_HURT;
+
+      // 4. Còn lại -> Hiện video Khỏe
+      return V_NORMAL; 
   };
 
   const feedBeast = async () => {
     if (!publicKey) return;
     try {
       if(audioRef.current && audioRef.current.paused) audioRef.current.play();
-      setIsHit(true); setTimeout(() => setIsHit(false), 400); 
+      
+      // Kích hoạt Rung & Đổi Video
+      setIsHit(true); 
+      // Rung trong 400ms rồi tắt
+      setTimeout(() => setIsHit(false), 400); 
+      
       const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
       const program = new Program(idl, PROGRAM_ID, provider);
       await program.methods.feed().accounts({
@@ -219,7 +254,7 @@ function GameContent() {
        await program.methods.claimReward().accounts({
          gameAccount: GAME_ADDRESS, hunter: publicKey, winner: winnerAddress
        }).rpc();
-       alert(`🏆 MISSION SUCCESS! Bounty Earned!`);
+       alert(`🏆 MISSION SUCCESS! You earned 2% Bounty!`);
        setTimeout(() => { window.location.reload(); }, 2000);
      } catch (err) { alert("Error: " + err.message); }
   };
@@ -230,15 +265,15 @@ function GameContent() {
     <div className="game-wrapper">
       <style>{styles}</style>
 
-      {/* VIDEO BACKGROUND (Thay thế thẻ div background cũ) */}
+      {/* VIDEO BACKGROUND */}
       <video 
         key={getCurrentVideo()} // Tự động reload khi đổi video
-        className={`bg-video ${getShakeClass()}`} 
+        className={`bg-video ${isHit ? "is-shaking" : ""}`} // Chỉ rung khi isHit = true
         autoPlay loop muted playsInline
         src={getCurrentVideo()}
       ></video>
 
-      {/* CÁC LỚP KHÁC */}
+      {/* LAYERS */}
       {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
       {timeLeft > 0 && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
 
@@ -292,9 +327,9 @@ function GameContent() {
         </div>
       )}
 
-      {/* BẢNG XẾP HẠNG */}
+      {/* BẢNG XẾP HẠNG (Gọn nhẹ bên trái) */}
       <div className="extra-hud">
-        <div>
+        <div style={{marginBottom: "5px"}}>
           <div>LAST HITTER</div>
           <small style={{color: "#fff"}}>{lastHitter ? shortenAddress(lastHitter) : "---"}</small>
         </div>
