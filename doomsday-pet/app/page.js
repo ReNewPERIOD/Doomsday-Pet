@@ -10,20 +10,16 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 // --- CẤU HÌNH ---
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
+
+// ⚠️ ĐÃ CẬP NHẬT ĐỊA CHỈ GAME MỚI CỦA BẠN
 const GAME_ADDRESS = new PublicKey("4DcJZNe1C4YGsj8yuVyCe9UHcF1SG2Z7Uffp6MUvrBdF");
 
-// --- URL HÌNH ẢNH & VIDEO ---
-const VIDEO_NORMAL = "https://files.catbox.moe/699hyi.mp4"; // *Lưu ý: Bạn đang dùng link mp3 cho video? Hãy chắc chắn đây là link .mp4 nhé. Nếu không có mp4, web sẽ hiện màn hình đen. Hãy thay đúng link video vào.*
-// Để code chạy test, mình sẽ để tạm link video mẫu, bạn nhớ thay lại link của bạn:
-// const VIDEO_NORMAL = "https://files.catbox.moe/699hyi.mp4";
-// const VIDEO_DAMAGED = "https://files.catbox.moe/jj5nc0.mp4";
-// const VIDEO_DEFEATED = "https://files.catbox.moe/3hcgvw.mp4";
+// ⚠️ ĐÃ CẬP NHẬT 3 LINK VIDEO CỦA BẠN
+const VIDEO_NORMAL   = "https://files.catbox.moe/699hyi.mp4"; // Khỏe
+const VIDEO_DAMAGED  = "https://files.catbox.moe/jj5nc0.mp4"; // Bị thương (HURT)
+const VIDEO_DEFEATED = "https://files.catbox.moe/3hcgvw.mp4"; // Chết (DEAD)
 
-// (Code dưới đây giả định bạn đã có 3 link video khác nhau. Nếu 3 video giống nhau thì hiệu ứng chuyển sẽ không rõ)
-const V_NORMAL = "https://files.catbox.moe/699hyi.mp4"; // Thay link thật
-const V_HURT   = "https://files.catbox.moe/jj5nc0.mp4";  // Thay link thật
-const V_DEAD   = "https://files.catbox.moe/3hcgvw.mp4";  // Thay link thật
-
+// --- URL HÌNH ẢNH & ÂM THANH (GIỮ NGUYÊN) ---
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
@@ -34,24 +30,15 @@ const styles = `
 
   body { margin: 0; background: #000; overflow: hidden; touch-action: none; }
   
-  /* ANIMATION CÚ ĐẤM */
   @keyframes punch-loop {
     0% { transform: translateX(0) scale(1); }
     20% { transform: translateX(30px) scale(0.9); } 
-    35% { transform: translateX(-220px) scale(1.15); } /* Đấm sâu hơn */
+    40% { transform: translateX(-180px) scale(1.1); } 
     100% { transform: translateX(0) scale(1); }
   }
 
-  /* HIỆU ỨNG RUNG CÓ LỰC (IMPACT SHAKE) */
-  @keyframes shake-impact {
-    0% { transform: translate(0, 0) rotate(0deg); }
-    10% { transform: translate(-5px, -5px) rotate(-1deg); }
-    20% { transform: translate(8px, 8px) rotate(1deg) scale(1.02); } /* Phóng to nhẹ tạo lực */
-    30% { transform: translate(-8px, 5px) rotate(-1deg); }
-    40% { transform: translate(5px, -8px) rotate(1deg); }
-    50% { transform: translate(-2px, 2px) rotate(0deg); }
-    100% { transform: translate(0, 0) rotate(0deg); }
-  }
+  @keyframes screen-shake-light { 0% { transform: translate(0, 0); } 25% { transform: translate(-3px, 3px); } 75% { transform: translate(3px, -3px); } 100% { transform: translate(0, 0); } }
+  @keyframes screen-shake-strong { 0% { transform: translate(0, 0) rotate(0deg); } 20% { transform: translate(-10px, 10px) rotate(-1deg); } 40% { transform: translate(10px, -10px) rotate(1deg); } 60% { transform: translate(-10px, 10px) rotate(0deg); } 80% { transform: translate(10px, -10px) rotate(-1deg); } 100% { transform: translate(0, 0) rotate(0deg); } }
 
   .game-wrapper {
     position: relative; width: 100vw; height: 100vh; overflow: hidden;
@@ -61,19 +48,14 @@ const styles = `
   /* VIDEO NỀN */
   .bg-video {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; 
-    z-index: 0;
+    object-fit: cover; z-index: 0;
     filter: brightness(0.6);
-    transition: filter 0.1s; /* Chớp sáng nhanh hơn */
+    transition: filter 0.2s; 
   }
 
-  /* Kích hoạt rung khi có class này */
-  .is-shaking {
-    animation: shake-impact 0.4s cubic-bezier(.36,.07,.19,.97) both;
-    filter: brightness(1.2) sepia(0.5) hue-rotate(-50deg) !important; /* Chớp đỏ cam */
-  }
+  .bg-hit-light { animation: screen-shake-light 0.3s ease-out; }
+  .bg-hit-strong { animation: screen-shake-strong 0.4s ease-in-out; filter: hue-rotate(-20deg) contrast(1.2) brightness(1.2); }
 
-  /* HERO & FIST */
   .hero-layer {
     position: absolute; right: 2%; bottom: 20%; width: 25%; max-width: 300px; 
     z-index: 4; filter: drop-shadow(0 0 20px #00e5ff); pointer-events: none;
@@ -84,26 +66,13 @@ const styles = `
     filter: drop-shadow(0 0 15px #00e5ff);
   }
 
-  /* --- MOBILE OPTIMIZATION --- */
+  /* MOBILE OPTIMIZATION */
   @media (max-width: 768px) {
-    /* Đẩy background về bên trái để thấy Boss rõ hơn */
-    .bg-video { object-position: 25% center !important; } 
-
-    .fist-layer { width: 75%; bottom: 35%; right: 5%; }
-    .hero-layer { width: 45%; bottom: 25%; right: -15%; }
-    
-    /* Thu nhỏ bảng xếp hạng tối đa */
-    .extra-hud {
-        top: 80px !important;
-        left: 10px !important; 
-        right: auto !important;
-        width: 150px !important;
-        transform: scale(0.85); /* Thu nhỏ toàn bộ bảng */
-        transform-origin: top left;
-        background: rgba(0,0,0,0.4) !important;
-        border: none !important;
-    }
-    .combat-btn { padding: 18px !important; font-size: 1.3rem !important; }
+    .bg-video { object-position: 65% center; }
+    .fist-layer { width: 70%; bottom: 35%; right: 5%; }
+    .hero-layer { width: 40%; bottom: 25%; right: -10%; }
+    .extra-hud { top: 80px !important; left: 10px !important; right: auto !important; width: 140px !important; padding: 8px; font-size: 0.6rem; background: rgba(0,0,0,0.4); border: none; }
+    .combat-btn { padding: 15px; font-size: 1.2rem; }
   }
 
   .hud-overlay {
@@ -148,6 +117,28 @@ const shortenAddress = (address) => {
   return str.slice(0, 4) + ".." + str.slice(-4);
 };
 
+// COMPONENT VIDEO ĐỂ KHÔNG BỊ LOAD LẠI GÂY ĐEN MÀN HÌNH
+const BackgroundVideo = ({ src, shakeClass }) => {
+    const videoRef = useRef(null);
+
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.load();
+            videoRef.current.play().catch(() => {});
+        }
+    }, [src]);
+
+    return (
+        <video 
+            ref={videoRef}
+            className={`bg-video ${shakeClass}`} 
+            autoPlay loop muted playsInline
+        >
+            <source src={src} type="video/mp4" />
+        </video>
+    );
+};
+
 function GameContent() {
   const { connection } = useConnection();
   const { publicKey } = useWallet();
@@ -171,7 +162,7 @@ function GameContent() {
 
   useEffect(() => {
     if (publicKey && audioRef.current) {
-        audioRef.current.play().catch(e => console.log("Audio waiting for interaction"));
+        audioRef.current.play().catch(e => console.log("Click to play audio"));
     }
   }, [publicKey]);
 
@@ -211,19 +202,21 @@ function GameContent() {
   const hpPercent = Math.min(100, (timeLeft / maxTime) * 100);
   const isDead = timeLeft === 0;
 
-  // --- LOGIC CHỌN VIDEO (TRỘN LẪN) ---
+  const getShakeClass = () => {
+    if (!isHit) return "";
+    if (hpPercent < 50) return "bg-hit-strong";
+    return "bg-hit-light";
+  };
+
+  // LOGIC TRỘN VIDEO: Khi bị đấm (isHit) sẽ hiện video Bị thương (HURT)
   const getCurrentVideo = () => {
-      // 1. Nếu chết -> Hiện video chết
-      if (isDead) return V_DEAD; 
+      if (!gameState) return VIDEO_NORMAL;
+      if (isDead) return VIDEO_DEFEATED; 
       
-      // 2. Nếu đang bị đánh (isHit = true) -> Hiện video Đau (tạo cảm giác phản ứng)
-      if (isHit) return V_HURT;
-
-      // 3. Nếu máu thấp < 50% -> Hiện video Đau
-      if (hpPercent < 50) return V_HURT;
-
-      // 4. Còn lại -> Hiện video Khỏe
-      return V_NORMAL; 
+      // Nếu đang bị đánh HOẶC máu < 50% thì hiện video Đau
+      if (isHit || hpPercent < 50) return VIDEO_DAMAGED; 
+      
+      return VIDEO_NORMAL; 
   };
 
   const feedBeast = async () => {
@@ -231,10 +224,8 @@ function GameContent() {
     try {
       if(audioRef.current && audioRef.current.paused) audioRef.current.play();
       
-      // Kích hoạt Rung & Đổi Video
-      setIsHit(true); 
-      // Rung trong 400ms rồi tắt
-      setTimeout(() => setIsHit(false), 400); 
+      // Kích hoạt Rung + Đổi video Damaged trong 400ms
+      setIsHit(true); setTimeout(() => setIsHit(false), 400); 
       
       const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
       const program = new Program(idl, PROGRAM_ID, provider);
@@ -254,7 +245,7 @@ function GameContent() {
        await program.methods.claimReward().accounts({
          gameAccount: GAME_ADDRESS, hunter: publicKey, winner: winnerAddress
        }).rpc();
-       alert(`🏆 MISSION SUCCESS! You earned 2% Bounty!`);
+       alert(`🏆 MISSION SUCCESS! Bounty Earned!`);
        setTimeout(() => { window.location.reload(); }, 2000);
      } catch (err) { alert("Error: " + err.message); }
   };
@@ -266,18 +257,12 @@ function GameContent() {
       <style>{styles}</style>
 
       {/* VIDEO BACKGROUND */}
-      <video 
-        key={getCurrentVideo()} // Tự động reload khi đổi video
-        className={`bg-video ${isHit ? "is-shaking" : ""}`} // Chỉ rung khi isHit = true
-        autoPlay loop muted playsInline
-        src={getCurrentVideo()}
-      ></video>
+      <BackgroundVideo src={getCurrentVideo()} shakeClass={getShakeClass()} />
 
-      {/* LAYERS */}
+      {/* CÁC LỚP KHÁC */}
       {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
       {timeLeft > 0 && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
 
-      {/* HEADER */}
       <div style={{ position: "absolute", top: 0, left: 0, width: "100%", padding: "20px", display: "flex", justifyContent: "space-between", zIndex: 30, alignItems: "center" }}>
         <div>
             <h1 className="font-pixel" style={{ margin: 0, fontSize: "1.2rem", color: "#fff", textShadow: "0 0 20px #00e5ff" }}>
@@ -287,7 +272,6 @@ function GameContent() {
         <WalletMultiButton style={{ background: "rgba(0,0,0,0.5)", border: "2px solid #00e5ff", fontFamily: "'Rajdhani'", fontSize: "0.8rem", height: "36px", padding: "0 10px" }} />
       </div>
 
-      {/* DASHBOARD */}
       {publicKey ? (
         <div className="hud-overlay">
             <div style={{ flex: 2, minWidth: "200px" }}>
@@ -327,7 +311,6 @@ function GameContent() {
         </div>
       )}
 
-      {/* BẢNG XẾP HẠNG (Gọn nhẹ bên trái) */}
       <div className="extra-hud">
         <div style={{marginBottom: "5px"}}>
           <div>LAST HITTER</div>
