@@ -10,16 +10,15 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 // --- CẤU HÌNH ---
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
-
-// ⚠️ ĐÃ CẬP NHẬT ĐỊA CHỈ GAME MỚI CỦA BẠN
 const GAME_ADDRESS = new PublicKey("4DcJZNe1C4YGsj8yuVyCe9UHcF1SG2Z7Uffp6MUvrBdF");
 
-// ⚠️ ĐÃ CẬP NHẬT 3 LINK VIDEO CỦA BẠN
-const VIDEO_NORMAL   = "https://files.catbox.moe/699hyi.mp4"; // Khỏe
-const VIDEO_DAMAGED  = "https://files.catbox.moe/jj5nc0.mp4"; // Bị thương (HURT)
-const VIDEO_DEFEATED = "https://files.catbox.moe/3hcgvw.mp4"; // Chết (DEAD)
+// --- URL VIDEO (ĐÃ ĐỔI SANG LINK NỘI BỘ SIÊU TỐC) ---
+// ⚠️ Đảm bảo bạn đã để 3 file v1.mp4, v2.mp4, v3.mp4 trong thư mục 'public'
+const VIDEO_NORMAL   = "/v1.mp4"; // Boss khỏe
+const VIDEO_DAMAGED  = "/v2.mp4"; // Boss bị thương
+const VIDEO_DEFEATED = "/v3.mp4"; // Boss chết
 
-// --- URL HÌNH ẢNH & ÂM THANH (GIỮ NGUYÊN) ---
+// --- URL HÌNH ẢNH ---
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
@@ -38,7 +37,7 @@ const styles = `
   }
 
   @keyframes screen-shake-light { 0% { transform: translate(0, 0); } 25% { transform: translate(-3px, 3px); } 75% { transform: translate(3px, -3px); } 100% { transform: translate(0, 0); } }
-  @keyframes screen-shake-strong { 0% { transform: translate(0, 0) rotate(0deg); } 20% { transform: translate(-10px, 10px) rotate(-1deg); } 40% { transform: translate(10px, -10px) rotate(1deg); } 60% { transform: translate(-10px, 10px) rotate(0deg); } 80% { transform: translate(10px, -10px) rotate(-1deg); } 100% { transform: translate(0, 0) rotate(0deg); } }
+  @keyframes screen-shake-strong { 0% { transform: translate(0, 0); } 20% { transform: translate(-7px, 7px); } 40% { transform: translate(7px, -7px); } 60% { transform: translate(-7px, 7px); } 80% { transform: translate(7px, -7px); } 100% { transform: translate(0, 0); } }
 
   .game-wrapper {
     position: relative; width: 100vw; height: 100vh; overflow: hidden;
@@ -56,6 +55,7 @@ const styles = `
   .bg-hit-light { animation: screen-shake-light 0.3s ease-out; }
   .bg-hit-strong { animation: screen-shake-strong 0.4s ease-in-out; filter: hue-rotate(-20deg) contrast(1.2) brightness(1.2); }
 
+  /* HERO & FIST - RESPONSIVE */
   .hero-layer {
     position: absolute; right: 2%; bottom: 20%; width: 25%; max-width: 300px; 
     z-index: 4; filter: drop-shadow(0 0 20px #00e5ff); pointer-events: none;
@@ -66,12 +66,23 @@ const styles = `
     filter: drop-shadow(0 0 15px #00e5ff);
   }
 
-  /* MOBILE OPTIMIZATION */
+  /* --- MOBILE OPTIMIZATION --- */
   @media (max-width: 768px) {
-    .bg-video { object-position: 65% center; }
+    .bg-video { object-position: 40% center !important; } /* Canh chỉnh Boss vào giữa hơn */
     .fist-layer { width: 70%; bottom: 35%; right: 5%; }
     .hero-layer { width: 40%; bottom: 25%; right: -10%; }
-    .extra-hud { top: 80px !important; left: 10px !important; right: auto !important; width: 140px !important; padding: 8px; font-size: 0.6rem; background: rgba(0,0,0,0.4); border: none; }
+    
+    /* BẢNG XẾP HẠNG MOBILE: SÁT BÊN PHẢI, DƯỚI NÚT VÍ */
+    .extra-hud { 
+        top: 75px !important; /* Cách mép trên để né nút Ví */
+        right: 10px !important; /* Sát mép phải */
+        left: auto !important; 
+        width: 140px !important; 
+        padding: 5px !important; 
+        font-size: 0.6rem !important; 
+        background: rgba(0,0,0,0.6) !important; 
+        border: 1px solid rgba(0,229,255,0.3) !important;
+    }
     .combat-btn { padding: 15px; font-size: 1.2rem; }
   }
 
@@ -117,17 +128,15 @@ const shortenAddress = (address) => {
   return str.slice(0, 4) + ".." + str.slice(-4);
 };
 
-// COMPONENT VIDEO ĐỂ KHÔNG BỊ LOAD LẠI GÂY ĐEN MÀN HÌNH
+// COMPONENT VIDEO (Giữ nguyên để không reload)
 const BackgroundVideo = ({ src, shakeClass }) => {
     const videoRef = useRef(null);
-
     useEffect(() => {
         if (videoRef.current) {
             videoRef.current.load();
             videoRef.current.play().catch(() => {});
         }
     }, [src]);
-
     return (
         <video 
             ref={videoRef}
@@ -162,7 +171,7 @@ function GameContent() {
 
   useEffect(() => {
     if (publicKey && audioRef.current) {
-        audioRef.current.play().catch(e => console.log("Click to play audio"));
+        audioRef.current.play().catch(e => console.log("Audio waiting for interaction"));
     }
   }, [publicKey]);
 
@@ -208,14 +217,10 @@ function GameContent() {
     return "bg-hit-light";
   };
 
-  // LOGIC TRỘN VIDEO: Khi bị đấm (isHit) sẽ hiện video Bị thương (HURT)
   const getCurrentVideo = () => {
       if (!gameState) return VIDEO_NORMAL;
       if (isDead) return VIDEO_DEFEATED; 
-      
-      // Nếu đang bị đánh HOẶC máu < 50% thì hiện video Đau
       if (isHit || hpPercent < 50) return VIDEO_DAMAGED; 
-      
       return VIDEO_NORMAL; 
   };
 
@@ -223,10 +228,7 @@ function GameContent() {
     if (!publicKey) return;
     try {
       if(audioRef.current && audioRef.current.paused) audioRef.current.play();
-      
-      // Kích hoạt Rung + Đổi video Damaged trong 400ms
       setIsHit(true); setTimeout(() => setIsHit(false), 400); 
-      
       const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
       const program = new Program(idl, PROGRAM_ID, provider);
       await program.methods.feed().accounts({
@@ -256,10 +258,8 @@ function GameContent() {
     <div className="game-wrapper">
       <style>{styles}</style>
 
-      {/* VIDEO BACKGROUND */}
       <BackgroundVideo src={getCurrentVideo()} shakeClass={getShakeClass()} />
 
-      {/* CÁC LỚP KHÁC */}
       {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
       {timeLeft > 0 && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
 
