@@ -20,19 +20,18 @@ const BOSS_DEFEATED = "https://img.upanh.moe/27tWnMRZ/btc-defeated1-webp.webp";
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 
-// --- URL ÂM THANH ---
-const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
-
+// --- STYLE CSS (ĐÃ TỐI ƯU MOBILE) ---
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap');
 
   body { margin: 0; background: #000; overflow: hidden; }
   
+  /* ANIMATION */
   @keyframes punch-loop {
     0% { transform: translateX(0) scale(1); }
     20% { transform: translateX(30px) scale(0.9); } 
-    40% { transform: translateX(-150px) scale(1.1); } 
+    40% { transform: translateX(-180px) scale(1.1); } 
     100% { transform: translateX(0) scale(1); }
   }
 
@@ -47,48 +46,64 @@ const styles = `
   .bg-layer {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     background-size: cover; background-position: center;
-    z-index: 0; transition: background-image 0.2s ease-in-out;
+    z-index: 0;
+    transition: background-image 0.2s ease-in-out;
   }
   .bg-hit-light { animation: screen-shake-light 0.3s ease-out; }
   .bg-hit-strong { animation: screen-shake-strong 0.4s ease-in-out; filter: hue-rotate(-20deg) contrast(1.2); }
 
-  /* HERO & FIST - RESPONSIVE */
+  /* --- CẤU HÌNH NHÂN VẬT --- */
   .hero-layer {
-    position: absolute; right: 2%; bottom: 20%; width: 25%; max-width: 300px; 
+    position: absolute; right: 2%; bottom: 15%; width: 25%; max-width: 300px; 
     z-index: 4; filter: drop-shadow(0 0 20px #00e5ff); pointer-events: none;
   }
   .fist-layer {
-    position: absolute; right: 15%; bottom: 30%; width: 45%; max-width: 700px; 
+    position: absolute; right: 18%; bottom: 25%; width: 45%; max-width: 700px; 
     z-index: 5; animation: punch-loop 0.8s infinite ease-in-out; pointer-events: none;
     filter: drop-shadow(0 0 15px #00e5ff);
   }
 
-  /* --- MOBILE OPTIMIZATION --- */
-  @media (max-width: 768px) {
-    .hero-layer { width: 40%; right: -5%; bottom: 35%; }
-    .fist-layer { width: 60%; right: 10%; bottom: 40%; }
-    .bg-layer { background-position: 70% center; } /* Canh Boss vào giữa màn hình đt */
-  }
-
-  /* HUD OVERLAY - RESPONSIVE */
+  /* --- HUD DESKTOP (Mặc định) --- */
   .hud-overlay {
-    position: relative; z-index: 20; width: 100%; padding: 15px;
-    background: linear-gradient(to top, rgba(0,0,0,0.98) 85%, transparent);
+    position: relative; z-index: 20; width: 100%; padding: 20px 40px 30px;
+    background: linear-gradient(to top, rgba(0,0,0,0.98) 70%, transparent);
     border-top: 1px solid rgba(0, 229, 255, 0.3);
-    display: flex; gap: 15px; align-items: flex-end;
-    flex-wrap: wrap; /* Cho phép xuống dòng trên mobile */
+    display: flex; gap: 30px; align-items: flex-end;
   }
 
-  /* Sắp xếp lại HUD trên mobile */
+  /* --- CSS CHO MOBILE (QUAN TRỌNG) --- */
   @media (max-width: 768px) {
-    .hud-overlay { flex-direction: column; align-items: stretch; padding-bottom: 30px; }
-    .hud-col-hp { order: 1; width: 100%; }
-    .hud-col-info { order: 2; display: flex; justify-content: space-between; align-items: center; }
-    .hud-col-btn { order: 3; width: 100%; }
+    /* Đổi bố cục HUD thành dọc */
+    .hud-overlay {
+        flex-direction: column; 
+        align-items: stretch; /* Kéo giãn full chiều ngang */
+        padding: 15px; 
+        gap: 15px;
+        padding-bottom: 30px;
+        background: linear-gradient(to top, rgba(0,0,0,1) 90%, transparent); /* Nền đen đậm hơn để dễ đọc chữ */
+    }
+    
+    /* Thu nhỏ nhân vật trên điện thoại */
+    .hero-layer { width: 40%; right: -5%; bottom: 40%; opacity: 0.8; }
+    .fist-layer { width: 60%; right: 10%; bottom: 45%; }
+    
+    /* Chỉnh lại font chữ mobile */
+    .font-pixel { font-size: 1.5rem !important; } /* Tiêu đề nhỏ lại */
+    .combat-btn { font-size: 1.2rem !important; padding: 15px !important; }
+    
+    /* Ẩn bớt bảng xếp hạng nếu quá chật */
+    .extra-hud { 
+        top: 60px !important; 
+        right: 10px !important; 
+        width: 150px !important; 
+        font-size: 0.6rem !important; 
+        padding: 5px !important;
+    }
   }
 
+  /* --- CÁC THÀNH PHẦN KHÁC --- */
   .chart-hp-frame {
-    width: 100%; height: 25px; background: rgba(20, 0, 0, 0.6);
+    width: 100%; height: 35px; background: rgba(20, 0, 0, 0.6);
     border: 2px solid #ff3300; transform: skewX(-10deg); overflow: hidden;
   }
   .chart-hp-fill {
@@ -98,11 +113,11 @@ const styles = `
   }
 
   .combat-btn {
-    width: 100%; padding: 15px; font-size: 1.2rem; font-family: 'Rajdhani', sans-serif; font-weight: 800;
+    width: 100%; padding: 20px; font-size: 1.5rem; font-family: 'Rajdhani', sans-serif; font-weight: 800;
     border: none; cursor: pointer; color: white;
     background: linear-gradient(90deg, #00c6ff, #0072ff);
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
-    box-shadow: 0 0 20px rgba(0, 198, 255, 0.5); letter-spacing: 1px;
+    box-shadow: 0 0 20px rgba(0, 198, 255, 0.5); letter-spacing: 2px;
   }
   .combat-btn:active { transform: scale(0.98); background: #fff; color: #000; }
   
@@ -112,22 +127,15 @@ const styles = `
   .font-pixel { font-family: 'Press Start 2P', cursive; text-transform: uppercase; }
   .font-tech { font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase; }
 
-  /* BẢNG XẾP HẠNG (RESPONSIVE) */
   .extra-hud {
-    position: absolute; top: 70px; right: 20px; width: 220px; padding: 10px;
+    position: absolute; top: 80px; right: 30px; width: 260px; padding: 15px;
     border: 1px solid #00e5ff; color: #00e5ff;
     font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase;
-    background: rgba(0, 0, 0, 0.8); z-index: 50;
-    font-size: 0.8rem;
+    background: rgba(0, 0, 0, 0.7); z-index: 50;
   }
-  /* Trên mobile thì ẩn bớt hoặc làm nhỏ lại */
-  @media (max-width: 768px) {
-    .extra-hud { top: 60px; right: 10px; width: 150px; font-size: 0.7rem; padding: 5px; }
-    .extra-hud div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  }
+  .extra-hud small { font-weight: 400; font-size: 0.8rem; color: #ccc; }
 `;
 
-// Hàm cắt ngắn địa chỉ ví (Tối ưu cho mobile: 3 ký tự đầu...3 ký tự cuối)
 const shortenAddress = (address) => {
   if (!address) return "WAITING...";
   const str = address.toString();
@@ -145,20 +153,11 @@ function GameContent() {
   const [isHit, setIsHit] = useState(false);
   const [lastHitter, setLastHitter] = useState(null);
   const [topHitters, setTopHitters] = useState([]);
+
+  // --- THAM KHẢO ÂM THANH (Chưa kích hoạt để tránh lỗi nếu chưa có file) ---
   const audioRef = useRef(null);
 
-  useEffect(() => {
-    setIsClient(true);
-    audioRef.current = new Audio(AUDIO_BATTLE_THEME);
-    audioRef.current.loop = true; 
-    audioRef.current.volume = 0.5; 
-  }, []);
-
-  useEffect(() => {
-    if (publicKey && audioRef.current) {
-        audioRef.current.play().catch(e => console.log("Audio requires interaction"));
-    }
-  }, [publicKey]);
+  useEffect(() => { setIsClient(true); }, []);
 
   const fetchGameState = async () => {
     try {
@@ -174,7 +173,6 @@ function GameContent() {
       const ttl = account.timeToLive.toNumber();
       setTimeLeft(Math.max(0, (lastFed + ttl) - now));
       setLastHitter(account.lastFeeder?.toString() || null);
-      
       setTopHitters([
         { address: 'Ff3r...1a2b', hits: 15 },
         { address: 'Aa2d...4e5f', hits: 12 },
@@ -197,13 +195,13 @@ function GameContent() {
   const isDead = timeLeft === 0;
 
   const getShakeClass = () => {
-    if (!isHit) return ""; 
-    if (hpPercent < 50) return "bg-hit-strong"; 
-    return "bg-hit-light"; 
+    if (!isHit) return "";
+    if (hpPercent < 50) return "bg-hit-strong";
+    return "bg-hit-light";
   };
 
   const getCurrentBg = () => {
-      if (!gameState) return BOSS_FULL_HP;
+      if (!gameState) return BOSS_FULL_HP; // Fix lỗi flash
       if (isDead) return BOSS_DEFEATED; 
       if (hpPercent < 50) return BOSS_DAMAGED; 
       return BOSS_FULL_HP; 
@@ -212,8 +210,7 @@ function GameContent() {
   const feedBeast = async () => {
     if (!publicKey) return;
     try {
-      if(audioRef.current && audioRef.current.paused) audioRef.current.play();
-      setIsHit(true); setTimeout(() => setIsHit(false), 400); 
+      setIsHit(true); setTimeout(() => setIsHit(false), 300);
       const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
       const program = new Program(idl, PROGRAM_ID, provider);
       await program.methods.feed().accounts({
@@ -232,7 +229,7 @@ function GameContent() {
        await program.methods.claimReward().accounts({
          gameAccount: GAME_ADDRESS, hunter: publicKey, winner: winnerAddress
        }).rpc();
-       alert(`🏆 MISSION SUCCESS! You earned 2% Bounty!`);
+       alert(`🏆 MISSION SUCCESS! You earned 2% Bounty! Winner got the rest.`);
        setTimeout(() => { window.location.reload(); }, 2000);
      } catch (err) { 
         console.error(err);
@@ -263,11 +260,12 @@ function GameContent() {
         <WalletMultiButton style={{ background: "rgba(0,0,0,0.5)", border: "2px solid #00e5ff", fontFamily: "'Rajdhani'", fontSize: "0.8rem", height: "36px", padding: "0 15px" }} />
       </div>
 
-      {/* DASHBOARD (ĐÃ TỐI ƯU MOBILE) */}
+      {/* DASHBOARD (RESPONSIVE) */}
       {publicKey ? (
         <div className="hud-overlay">
-            {/* Cột 1: Thanh Máu */}
-            <div className="hud-col-hp">
+            
+            {/* 1. THANH MÁU */}
+            <div style={{ flex: 2, width: "100%" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#ff3300", fontWeight: "bold" }}>
                     <span className="font-tech" style={{fontSize: "0.9rem"}}>BTC ARMOR</span>
                     <span className="font-tech" style={{fontSize: "1.2rem"}}>{timeLeft}s</span>
@@ -277,20 +275,18 @@ function GameContent() {
                 </div>
             </div>
 
-            {/* Cột 2: Thông tin Tiền */}
-            <div className="hud-col-info" style={{ flex: 1, textAlign: "center" }}>
-                <div>
-                    <div className="font-tech" style={{ color: "#aaa", fontSize: "0.8rem" }}>TOTAL LOOT</div>
-                    <div className="font-pixel" style={{ color: "#ffd700", fontSize: "1.5rem", textShadow: "0 0 20px #ffd700" }}>
-                        {potBalance.toFixed(4)}
-                    </div>
+            {/* 2. TIỀN THƯỞNG */}
+            <div style={{ flex: 1, textAlign: "center", width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="font-tech" style={{ color: "#aaa", fontSize: "0.8rem" }}>LOOT POOL</div>
+                <div className="font-pixel" style={{ color: "#ffd700", fontSize: "1.5rem", textShadow: "0 0 20px #ffd700" }}>
+                    {potBalance.toFixed(4)}
                 </div>
             </div>
 
-            {/* Cột 3: Nút Bấm */}
-            <div className="hud-col-btn" style={{ flex: 1 }}>
+            {/* 3. NÚT BẤM */}
+            <div style={{ flex: 1, width: "100%" }}>
                 {!isDead ? (
-                    <button className="combat-btn" onClick={feedBeast}>👊 SMASH</button>
+                    <button className="combat-btn" onClick={feedBeast}>👊 SMASH (0.005)</button>
                 ) : (
                     <button className="combat-btn btn-loot" onClick={claimPrize}>
                         💎 CLAIM <span style={{fontSize: "0.8rem"}}>(2% FEE)</span>
