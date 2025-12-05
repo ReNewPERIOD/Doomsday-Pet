@@ -20,9 +20,9 @@ const VIDEO_NORMAL = "https://files.catbox.moe/699hyi.mp4"; // *Lưu ý: Bạn �
 // const VIDEO_DEFEATED = "https://files.catbox.moe/3hcgvw.mp4";
 
 // (Code dưới đây giả định bạn đã có 3 link video khác nhau. Nếu 3 video giống nhau thì hiệu ứng chuyển sẽ không rõ)
-const V_NORMAL = "https://files.catbox.moe/link_video_khoe.mp4"; // Thay link thật
-const V_HURT   = "https://files.catbox.moe/link_video_dau.mp4";  // Thay link thật
-const V_DEAD   = "https://files.catbox.moe/link_video_chet.mp4";  // Thay link thật
+const V_NORMAL = "https://files.catbox.moe/699hyi.mp4"; // Thay link thật
+const V_HURT   = "https://files.catbox.moe/jj5nc0.mp4";  // Thay link thật
+const V_DEAD   = "https://files.catbox.moe/3hcgvw.mp4";  // Thay link thật
 
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
