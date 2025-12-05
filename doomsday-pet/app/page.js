@@ -10,7 +10,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 // --- CẤU HÌNH ---
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
-const GAME_ADDRESS = new PublicKey("7wpK2r8dqKTwn5nzS2mShQFdW1ZdaFdVYFL9K4bGPz3b");
+const GAME_ADDRESS = new PublicKey("4DcJZNe1C4YGsj8yuVyCe9UHcF1SG2Z7Uffp6MUvrBdF");
 
 // ⚠️ THAY 3 LINK VIDEO CỦA BẠN VÀO ĐÂY (Lấy từ Catbox.moe)
 const VIDEO_NORMAL = "https://files.catbox.moe/699hyi.mp4"; 
