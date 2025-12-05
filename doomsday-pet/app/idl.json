@@ -1,0 +1,112 @@
+{
+  "version": "0.1.0",
+  "name": "doomsday_pet",
+  "instructions": [
+    {
+      "name": "initialize",
+      "accounts": [
+        {
+          "name": "gameAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "signer",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "feed",
+      "accounts": [
+        {
+          "name": "gameAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "player",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claimReward",
+      "accounts": [
+        {
+          "name": "gameAccount",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "hunter",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "winner",
+          "isMut": true,
+          "isSigner": false
+        }
+      ],
+      "args": []
+    }
+  ],
+  "accounts": [
+    {
+      "name": "GameData",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lastFedTimestamp",
+            "type": "i64"
+          },
+          {
+            "name": "timeToLive",
+            "type": "i64"
+          },
+          {
+            "name": "lastFeeder",
+            "type": "publicKey"
+          },
+          {
+            "name": "feedPrice",
+            "type": "u64"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "GameIsDead",
+      "msg": "Game Over."
+    },
+    {
+      "code": 6001,
+      "name": "GameIsAlive",
+      "msg": "Game is still running."
+    },
+    {
+      "code": 6002,
+      "name": "WrongWinnerAddress",
+      "msg": "Wrong Winner Address provided."
+    }
+  ]
+}
