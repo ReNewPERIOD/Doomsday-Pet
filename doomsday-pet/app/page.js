@@ -12,28 +12,28 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
 const GAME_ADDRESS = new PublicKey("7wpK2r8dqKTwn5nzS2mShQFdW1ZdaFdVYFL9K4bGPz3b");
 
-// --- URL HÌNH ẢNH ---
-const BOSS_FULL_HP = "https://img.upanh.moe/hSVqpnk/btc-webp.webp";
-const BOSS_DAMAGED = "https://img.upanh.moe/6GFTv0M/btc-damage-webp.webp";
-const BOSS_DEFEATED = "https://img.upanh.moe/3568YcKz/btc-defeated-webp.webp";
+// ⚠️ THAY 3 LINK VIDEO CỦA BẠN VÀO ĐÂY (Lấy từ Catbox.moe)
+const VIDEO_NORMAL = "https://files.catbox.moe/699hyi.mp4"; 
+const VIDEO_DAMAGED = "https://files.catbox.moe/jj5nc0.mp4";
+const VIDEO_DEFEATED = "https://files.catbox.moe/3hcgvw.mp4";
 
+// --- URL HÌNH ẢNH (Giữ nguyên) ---
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 
-// --- URL ÂM THANH (Dùng link nhẹ hơn nếu có) ---
-const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3"; 
+// --- URL ÂM THANH ---
+const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap');
 
-  body { margin: 0; background: #000; overflow: hidden; touch-action: none; } /* Chống kéo trang trên mobile */
+  body { margin: 0; background: #000; overflow: hidden; touch-action: none; }
   
-  /* ANIMATION */
   @keyframes punch-loop {
     0% { transform: translateX(0) scale(1); }
     20% { transform: translateX(30px) scale(0.9); } 
-    40% { transform: translateX(-150px) scale(1.1); } 
+    40% { transform: translateX(-180px) scale(1.1); } 
     100% { transform: translateX(0) scale(1); }
   }
 
@@ -45,49 +45,21 @@ const styles = `
     display: flex; flex-direction: column; justify-content: flex-end;
   }
 
-  .bg-layer {
+  /* VIDEO NỀN */
+  .bg-video {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background-size: cover; 
-    background-position: center; /* Mặc định cho PC */
+    object-fit: cover; /* Video phủ kín màn hình */
     z-index: 0;
-    transition: background-image 0.2s ease-in-out;
-  }
-
-  /* MEDIA QUERY CHO MOBILE (QUAN TRỌNG) */
-  @media (max-width: 768px) {
-    .bg-layer {
-        background-position: 65% center; /* Dịch ảnh sang trái để thấy Boss trên màn hình dọc */
-    }
-    .fist-layer {
-        width: 70% !important; /* Tay to hơn trên đt */
-        bottom: 35% !important;
-        right: 5% !important;
-    }
-    .hero-layer {
-        width: 40% !important;
-        bottom: 25% !important;
-        right: -10% !important;
-    }
-    .extra-hud {
-        top: 70px !important;
-        right: 10px !important;
-        width: 160px !important; /* Thu nhỏ bảng xếp hạng */
-        padding: 8px !important;
-        font-size: 0.6rem !important; /* Chữ nhỏ lại */
-        background: rgba(0,0,0,0.5) !important; /* Mờ bớt cho đỡ che */
-    }
-    .combat-btn {
-        padding: 15px !important;
-        font-size: 1.2rem !important;
-    }
-    .font-pixel { font-size: 1.2rem !important; }
+    filter: brightness(0.6); /* Làm tối video để nổi bật nút bấm */
+    transition: opacity 0.5s ease-in-out;
   }
 
   .bg-hit-light { animation: screen-shake-light 0.3s ease-out; }
   .bg-hit-strong { animation: screen-shake-strong 0.4s ease-in-out; filter: hue-rotate(-20deg) contrast(1.2); }
 
+  /* RESPONSIVE LAYERS */
   .hero-layer {
-    position: absolute; right: 2%; bottom: 15%; width: 25%; max-width: 300px; 
+    position: absolute; right: 2%; bottom: 20%; width: 25%; max-width: 300px; 
     z-index: 4; filter: drop-shadow(0 0 20px #00e5ff); pointer-events: none;
   }
   .fist-layer {
@@ -96,24 +68,24 @@ const styles = `
     filter: drop-shadow(0 0 15px #00e5ff);
   }
 
+  @media (max-width: 768px) {
+    .bg-video { object-position: 65% center; }
+    .fist-layer { width: 70%; bottom: 35%; right: 5%; }
+    .hero-layer { width: 40%; bottom: 25%; right: -10%; }
+    .extra-hud { top: 70px; right: 10px; width: 160px; padding: 8px; font-size: 0.6rem; background: rgba(0,0,0,0.5); }
+    .combat-btn { padding: 15px; font-size: 1.2rem; }
+  }
+
   .hud-overlay {
     position: relative; z-index: 20; width: 100%; padding: 20px 40px 30px;
     background: linear-gradient(to top, rgba(0,0,0,0.98) 70%, transparent);
     border-top: 1px solid rgba(0, 229, 255, 0.3);
     display: flex; gap: 20px; align-items: flex-end;
-    flex-wrap: wrap; /* Cho phép xuống dòng trên mobile */
+    flex-wrap: wrap; 
   }
 
-  .chart-hp-frame {
-    width: 100%; height: 35px; background: rgba(20, 0, 0, 0.6);
-    border: 2px solid #ff3300; transform: skewX(-20deg); overflow: hidden;
-  }
-  
-  .chart-hp-fill {
-    height: 100%;
-    background: repeating-linear-gradient(45deg, #ff0000 0, #ff0000 5px, #990000 5px, #990000 10px, #660000 10px, #660000 15px);
-    box-shadow: 0 0 30px #ff0000; transition: width 0.3s ease-out;
-  }
+  .chart-hp-frame { width: 100%; height: 25px; background: rgba(20, 0, 0, 0.6); border: 2px solid #ff3300; transform: skewX(-10deg); overflow: hidden; }
+  .chart-hp-fill { height: 100%; background: repeating-linear-gradient(45deg, #ff0000 0, #ff0000 5px, #990000 5px, #990000 10px); box-shadow: 0 0 30px #ff0000; transition: width 0.3s ease-out; }
 
   .combat-btn {
     width: 100%; padding: 20px; font-size: 1.5rem; font-family: 'Rajdhani', sans-serif; font-weight: 800;
@@ -130,13 +102,12 @@ const styles = `
   .font-pixel { font-family: 'Press Start 2P', cursive; text-transform: uppercase; }
   .font-tech { font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase; }
 
-  /* BẢNG XẾP HẠNG (RESPONSIVE) */
   .extra-hud {
     position: absolute; top: 80px; right: 30px; width: 260px; padding: 15px;
     border: 1px solid #00e5ff; color: #00e5ff;
     font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase;
     background: rgba(0, 0, 0, 0.8); z-index: 50;
-    pointer-events: none; /* Cho phép bấm xuyên qua để không bị che nút */
+    pointer-events: none;
   }
   .extra-hud small { font-weight: 400; font-size: 0.8rem; color: #ccc; }
 `;
@@ -159,25 +130,16 @@ function GameContent() {
   const [lastHitter, setLastHitter] = useState(null);
   const [topHitters, setTopHitters] = useState([]);
   
-  // Audio Ref
   const audioRef = useRef(null);
 
   useEffect(() => {
     setIsClient(true);
-    // PRELOAD ẢNH: Tải trước để không bị giật
-    const imagesToPreload = [BOSS_FULL_HP, BOSS_DAMAGED, BOSS_DEFEATED, IMG_FIST, IMG_HERO];
-    imagesToPreload.forEach((src) => {
-        const img = new Image();
-        img.src = src;
-    });
-
-    // INIT AUDIO
+    // Init Audio
     audioRef.current = new Audio(AUDIO_BATTLE_THEME);
     audioRef.current.loop = true;
     audioRef.current.volume = 0.5;
   }, []);
 
-  // Auto play audio when connected
   useEffect(() => {
     if (publicKey && audioRef.current) {
         audioRef.current.play().catch(e => console.log("Audio waiting for interaction"));
@@ -226,18 +188,19 @@ function GameContent() {
     return "bg-hit-light";
   };
 
-  const getCurrentBg = () => {
-      if (!gameState) return BOSS_FULL_HP;
-      if (isDead) return BOSS_DEFEATED; 
-      if (hpPercent < 50) return BOSS_DAMAGED; 
-      return BOSS_FULL_HP; 
+  // LOGIC CHỌN VIDEO
+  const getCurrentVideo = () => {
+      if (!gameState) return VIDEO_NORMAL;
+      if (isDead) return VIDEO_DEFEATED; 
+      if (hpPercent < 50) return VIDEO_DAMAGED; 
+      return VIDEO_NORMAL; 
   };
 
   const feedBeast = async () => {
     if (!publicKey) return;
     try {
       if(audioRef.current && audioRef.current.paused) audioRef.current.play();
-      setIsHit(true); setTimeout(() => setIsHit(false), 300);
+      setIsHit(true); setTimeout(() => setIsHit(false), 400); 
       const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
       const program = new Program(idl, PROGRAM_ID, provider);
       await program.methods.feed().accounts({
@@ -256,12 +219,9 @@ function GameContent() {
        await program.methods.claimReward().accounts({
          gameAccount: GAME_ADDRESS, hunter: publicKey, winner: winnerAddress
        }).rpc();
-       alert(`🏆 MISSION SUCCESS! You earned 2% Bounty!`);
+       alert(`🏆 MISSION SUCCESS! Bounty Earned!`);
        setTimeout(() => { window.location.reload(); }, 2000);
-     } catch (err) { 
-        console.error(err);
-        alert("Error: " + err.message); 
-     }
+     } catch (err) { alert("Error: " + err.message); }
   };
 
   if (!isClient) return null;
@@ -270,11 +230,15 @@ function GameContent() {
     <div className="game-wrapper">
       <style>{styles}</style>
 
-      <div 
-        className={`bg-layer ${getShakeClass()}`} 
-        style={{ backgroundImage: `url('${getCurrentBg()}')` }}
-      ></div>
+      {/* VIDEO BACKGROUND (Thay thế thẻ div background cũ) */}
+      <video 
+        key={getCurrentVideo()} // Tự động reload khi đổi video
+        className={`bg-video ${getShakeClass()}`} 
+        autoPlay loop muted playsInline
+        src={getCurrentVideo()}
+      ></video>
 
+      {/* CÁC LỚP KHÁC */}
       {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
       {timeLeft > 0 && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
 
@@ -291,7 +255,7 @@ function GameContent() {
       {/* DASHBOARD */}
       {publicKey ? (
         <div className="hud-overlay">
-            <div style={{ flex: 2, minWidth: "200px" }}> {/* Thêm minWidth để không bị bóp méo trên đt */}
+            <div style={{ flex: 2, minWidth: "200px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#ff3300", fontWeight: "bold" }}>
                     <span className="font-tech" style={{fontSize: "0.9rem"}}>BTC ARMOR</span>
                     <span className="font-tech" style={{fontSize: "1.2rem"}}>{timeLeft}s</span>
@@ -328,11 +292,11 @@ function GameContent() {
         </div>
       )}
 
-      {/* BẢNG XẾP HẠNG (ĐÃ THU NHỎ) */}
+      {/* BẢNG XẾP HẠNG */}
       <div className="extra-hud">
         <div>
           <div>LAST HITTER</div>
-          <small>{lastHitter ? shortenAddress(lastHitter) : "No hits"}</small>
+          <small style={{color: "#fff"}}>{lastHitter ? shortenAddress(lastHitter) : "---"}</small>
         </div>
         <div style={{ marginTop: "5px", paddingTop: "5px", borderTop: "1px dashed #00e5ff" }}>
           <div>TOP HITTERS</div>
