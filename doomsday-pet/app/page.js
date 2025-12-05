@@ -123,7 +123,7 @@ function GameContent() {
   const { publicKey } = useWallet();
   const [gameState, setGameState] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [maxTime, setMaxTime] = useState(60);
+  const [maxTime, setMaxTime] = useState(45);
   const [potBalance, setPotBalance] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const [isHit, setIsHit] = useState(false);
@@ -154,7 +154,7 @@ function GameContent() {
       const balance = await connection.getBalance(GAME_ADDRESS);
       setGameState(account);
       setPotBalance(balance / 1000000000); 
-      setMaxTime(account.timeToLive.toNumber() || 60);
+      setMaxTime(account.timeToLive.toNumber() || 45);
       const now = Math.floor(Date.now() / 1000);
       const lastFed = account.lastFedTimestamp.toNumber();
       const ttl = account.timeToLive.toNumber();
