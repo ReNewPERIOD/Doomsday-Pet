@@ -10,13 +10,14 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 // --- CẤU HÌNH ---
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
-const GAME_ADDRESS = new PublicKey("BzhTWXrqmZAkUcjJRhxsMsEKpCNbYQcjKdFCqwyzhf4D");
+const GAME_ADDRESS = new PublicKey("Hxj8rKhDudPr97PhUjK1MVgohis9PJFUNsB2PCVwb3qU");
 
-// --- URL ---
-const VIDEO_NORMAL = "/v1.mp4"; 
-const VIDEO_DAMAGED = "/v2.mp4"; 
+// --- URL VIDEO ---
+const VIDEO_NORMAL   = "/v1.mp4"; 
+const VIDEO_DAMAGED  = "/v2.mp4"; 
 const VIDEO_DEFEATED = "/v3.mp4"; 
 
+// --- ASSETS ---
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
@@ -42,18 +43,10 @@ const styles = `
     display: flex; flex-direction: column; justify-content: flex-end;
   }
 
-  /* VIDEO STACK (XẾP LỚP) */
+  /* VIDEO STACK */
   .video-stack { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background: #000; }
-  
-  .bg-video-layer { 
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-    object-fit: cover; 
-    opacity: 0; 
-    transition: opacity 0.5s ease-in-out; /* Chuyển cảnh mượt */
-    filter: brightness(0.6);
-  }
+  .bg-video-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.5s ease-in-out; opacity: 0; filter: brightness(0.6); }
   .bg-video-layer.active { opacity: 1; z-index: 1; }
-
   .bg-hit-light { animation: screen-shake-light 0.3s ease-out; }
   .bg-hit-strong { animation: screen-shake-strong 0.4s ease-in-out; filter: hue-rotate(-20deg) contrast(1.2) brightness(1.2); }
 
@@ -62,7 +55,7 @@ const styles = `
 
   /* MOBILE OPTIMIZATION */
   @media (max-width: 768px) {
-    .bg-video-layer { object-position: 65% center; } 
+    .bg-video-layer { object-position: 65% center; }
     .fist-layer { width: 70%; bottom: 35%; right: 5%; }
     .hero-layer { width: 40%; bottom: 25%; right: -10%; }
     .extra-hud { top: 80px !important; left: 10px !important; right: auto !important; width: 150px !important; padding: 8px !important; font-size: 0.65rem !important; background: rgba(0,0,0,0.6) !important; border: 1px solid rgba(0,229,255,0.3) !important; }
@@ -73,9 +66,13 @@ const styles = `
   .chart-hp-frame { width: 100%; height: 25px; background: rgba(20, 0, 0, 0.6); border: 2px solid #ff3300; transform: skewX(-10deg); overflow: hidden; }
   .chart-hp-fill { height: 100%; background: repeating-linear-gradient(45deg, #ff0000 0, #ff0000 5px, #990000 5px, #990000 10px); box-shadow: 0 0 30px #ff0000; transition: width 0.3s ease-out; }
 
-  .combat-btn { width: 100%; padding: 20px; font-size: 1.5rem; font-family: 'Rajdhani', sans-serif; font-weight: 800; border: none; cursor: pointer; color: white; background: linear-gradient(90deg, #00c6ff, #0072ff); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); box-shadow: 0 0 20px rgba(0, 198, 255, 0.5); letter-spacing: 2px; }
+  .combat-btn { width: 100%; padding: 20px; font-size: 1.5rem; font-family: 'Rajdhani', sans-serif; font-weight: 800; border: none; cursor: pointer; color: white; background: linear-gradient(90deg, #00c6ff, #0072ff); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); box-shadow: 0 0 20px rgba(0, 198, 255, 0.5); letter-spacing: 2px; transition: all 0.2s; }
   .combat-btn:active { transform: scale(0.95); background: #fff; color: #000; }
+  /* Disabled state */
+  .combat-btn:disabled { background: #555; color: #aaa; cursor: not-allowed; box-shadow: none; }
+  
   .btn-loot { background: linear-gradient(90deg, #f1c40f, #f39c12); color: black; animation: pulse 1s infinite; }
+  .btn-loot:disabled { animation: none; background: #444; color: #888; }
   @keyframes pulse { 0% { box-shadow: 0 0 0 #f1c40f; } 100% { box-shadow: 0 0 30px #f1c40f; } }
   
   .font-pixel { font-family: 'Press Start 2P', cursive; text-transform: uppercase; }
@@ -93,7 +90,7 @@ const shortenAddress = (address) => {
   return str.slice(0, 4) + ".." + str.slice(-4);
 };
 
-// COMPONENT VIDEO (Giữ nguyên để không reload)
+// COMPONENT VIDEO
 const BackgroundVideo = ({ src, shakeClass }) => {
     const videoRef = useRef(null);
     useEffect(() => {
@@ -105,7 +102,7 @@ const BackgroundVideo = ({ src, shakeClass }) => {
     return (
         <video 
             ref={videoRef}
-            className={`bg-video ${shakeClass}`} 
+            className={`bg-video-layer ${shakeClass}`} 
             autoPlay loop muted playsInline
             src={src}
         />
@@ -124,6 +121,9 @@ function GameContent() {
   const [lastHitter, setLastHitter] = useState(null);
   const [topHitters, setTopHitters] = useState([]);
   
+  // TRẠNG THÁI XỬ LÝ (CHẶN SPAM CLICK)
+  const [isProcessing, setIsProcessing] = useState(false);
+
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
 
@@ -142,12 +142,14 @@ function GameContent() {
       else { audioRef.current.pause(); setIsMuted(true); }
   };
 
+  // --- LOGIC FETCH GAME STATE (CẢI TIẾN) ---
   const fetchGameState = async () => {
     try {
       const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
       const program = new Program(idl, PROGRAM_ID, provider);
       const account = await program.account.gameData.fetch(GAME_ADDRESS);
       const balance = await connection.getBalance(GAME_ADDRESS);
+      
       setGameState(account);
       setPotBalance(balance / 1000000000); 
       
@@ -156,7 +158,7 @@ function GameContent() {
 
       const lastFed = account.lastFedTimestamp.toNumber();
       
-      // LOGIC FIRST BLOOD (CHỜ)
+      // LOGIC CHỜ vs CHẠY
       if (lastFed === 0) {
           setTimeLeft(ttl);
       } else {
@@ -166,7 +168,10 @@ function GameContent() {
 
       setLastHitter(account.lastFeeder?.toString() || null);
       setTopHitters([{ address: 'Ff3r...1a2b', hits: 15 }, { address: 'Aa2d...4e5f', hits: 12 }, { address: 'Cc9t...7y8z', hits: 8 }]);
-    } catch (err) { }
+    } catch (err) {
+       console.error("Fetch error:", err);
+       // Không alert lỗi fetch để tránh spam popup
+    }
   };
 
   useEffect(() => {
@@ -174,19 +179,23 @@ function GameContent() {
     fetchGameState(); 
     const interval = setInterval(() => {
         fetchGameState();
-        // Chỉ trừ thời gian nếu game ĐANG CHẠY (lastFed != 0)
         if (gameState && gameState.lastFedTimestamp.toNumber() !== 0) {
              setTimeLeft((prev) => Math.max(0, prev - 1));
         }
     }, 1000);
     return () => clearInterval(interval);
-  }, [publicKey, isClient, gameState]);
+  }, [publicKey, isClient]);
 
   const hpPercent = maxTime > 0 ? Math.min(100, (timeLeft / maxTime) * 100) : 100;
   const isWaiting = gameState && gameState.lastFedTimestamp.toNumber() === 0;
   const isDead = timeLeft === 0 && !isWaiting;
 
-  // LOGIC TRẠNG THÁI VIDEO
+  const getShakeClass = () => {
+    if (!isHit) return "";
+    if (hpPercent < 50) return "bg-hit-strong";
+    return "bg-hit-light";
+  };
+
   const getCurrentVideoState = () => {
       if (isDead) return 'dead'; 
       if (isHit) return 'damaged'; 
@@ -195,46 +204,81 @@ function GameContent() {
   };
   const currentState = getCurrentVideoState();
 
-  const getShakeClass = () => {
-    if (!isHit) return "";
-    if (hpPercent < 50) return "is-shaking";
-    return "is-shaking";
-  };
-
+  // --- LOGIC FEED (CẢI TIẾN: IS PROCESSING) ---
   const feedBeast = async () => {
-    if (!publicKey) return;
+    if (!publicKey || isProcessing) return; // Chặn nếu đang xử lý
+    setIsProcessing(true); // Khóa nút
+
     try {
       if(audioRef.current && audioRef.current.paused && !isMuted) audioRef.current.play();
+      
       setIsHit(true); setTimeout(() => setIsHit(false), 400); 
+      
       const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
       const program = new Program(idl, PROGRAM_ID, provider);
-      await program.methods.feed().accounts({
+      
+      const tx = await program.methods.feed().accounts({
         gameAccount: GAME_ADDRESS, player: publicKey, systemProgram: web3.SystemProgram.programId,
       }).rpc();
-      fetchGameState(); 
-    } catch (err) { alert("Missed! " + err.message); }
+      
+      console.log("Feed tx:", tx);
+
+      // Đợi 1.2s rồi fetch lại để đảm bảo blockchain đã cập nhật
+      setTimeout(fetchGameState, 1200);
+
+    } catch (err) { 
+        console.error("Feed err:", err);
+        if (err && err.message && err.message.includes("GameIsDead")) {
+            alert("⚠️ Too late! The Giant is dead. Wait for Claim.");
+        } else {
+            alert("Attack Failed: " + (err.message || "Unknown Error"));
+        }
+        setTimeout(fetchGameState, 800);
+    } finally {
+        setIsProcessing(false); // Mở khóa nút
+    }
   };
 
+  // --- LOGIC CLAIM (CẢI TIẾN: KHÔNG RELOAD, XỬ LÝ GAMEISALIVE) ---
   const claimPrize = async () => {
-     if (!publicKey || !gameState) return;
-     // Check Frontend: Chặn spam khi chưa hết giờ
+     if (!publicKey || !gameState || isProcessing) return;
+     
      if (timeLeft > 0) { alert("Wait until timer hits 0s!"); return; }
+     
+     setIsProcessing(true); // Khóa nút
 
      try {
        const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
        const program = new Program(idl, PROGRAM_ID, provider);
-       const winnerAddress = gameState.lastFeeder;
+       
+       // Chuyển string thành PublicKey chuẩn
+       const winnerAddress = new PublicKey(gameState.lastFeeder);
+
        await program.methods.claimReward().accounts({
          gameAccount: GAME_ADDRESS, hunter: publicKey, winner: winnerAddress
        }).rpc();
-       alert(`🏆 MISSION SUCCESS! Bounty Earned!`);
-       setTimeout(() => { window.location.reload(); }, 2000);
+       
+       alert(`🏆 MISSION SUCCESS! Bounty Earned! Game Resetting...`);
+       
+       // KHÔNG RELOAD TRANG! Thay vào đó fetch lại state sau 1.2s
+       setTimeout(() => {
+           fetchGameState();
+       }, 1200);
+
      } catch (err) { 
-         if (err.message.includes("GameIsAlive")) {
-             alert("⚠️ Syncing... Please wait 3s!");
+         console.error("Claim err:", err);
+         const msg = err?.message || String(err);
+         
+         if (msg.includes("GameIsAlive")) {
+             // Blockchain chưa kịp cập nhật trạng thái chết -> Refetch và báo user
+             await fetchGameState();
+             alert("⚠️ Syncing... Chain says game is still running. Try again in 2s!");
          } else {
-             alert("Error: " + err.message); 
+             alert("Claim Error: " + msg); 
          }
+         setTimeout(fetchGameState, 800);
+     } finally {
+         setIsProcessing(false); // Mở khóa nút
      }
   };
 
@@ -255,7 +299,6 @@ function GameContent() {
       {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
       {(!isDead && !isWaiting) && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
 
-      {/* HEADER */}
       <div style={{ position: "absolute", top: 0, left: 0, width: "100%", padding: "20px", display: "flex", justifyContent: "space-between", zIndex: 30, alignItems: "center" }}>
         <div><h1 className="font-pixel" style={{ margin: 0, fontSize: "1.2rem", color: "#fff", textShadow: "0 0 20px #00e5ff" }}>WEB3 <span style={{color:"#00e5ff"}}>FIGHTER</span></h1></div>
         <WalletMultiButton style={{ background: "rgba(0,0,0,0.5)", border: "2px solid #00e5ff", fontFamily: "'Rajdhani'", fontSize: "0.8rem", height: "36px", padding: "0 10px" }} />
@@ -263,13 +306,12 @@ function GameContent() {
 
       <button className="music-btn" onClick={toggleSound}>{isMuted || (audioRef.current && audioRef.current.paused) ? "🔇" : "🔊"}</button>
 
-      {/* DASHBOARD */}
       {publicKey ? (
         <div className="hud-overlay">
             <div style={{ flex: 2, minWidth: "200px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#ff3300", fontWeight: "bold" }}>
                     <span className="font-tech" style={{fontSize: "0.9rem"}}>BTC ARMOR</span>
-                    <span className="font-tech" style={{fontSize: "1.2rem"}}>{isWaiting ? "45s" : timeLeft + "s"}</span>
+                    <span className="font-tech" style={{fontSize: "1.2rem"}}>{isWaiting ? "60s" : timeLeft + "s"}</span>
                 </div>
                 <div className="chart-hp-frame">
                     <div className="chart-hp-fill" style={{ width: `${hpPercent}%` }}></div>
@@ -286,12 +328,12 @@ function GameContent() {
             <div style={{ flex: 1, minWidth: "150px" }}>
                 <div style={{ width: "100%" }}>
                     {isDead ? (
-                        <button className="combat-btn btn-loot" onClick={claimPrize}>
-                            💎 CLAIM <span style={{fontSize: "0.7rem"}}>(2%)</span>
+                        <button className="combat-btn btn-loot" onClick={claimPrize} disabled={isProcessing}>
+                            {isProcessing ? "PROCESSING..." : "💎 CLAIM"} <span style={{fontSize: "0.7rem"}}>(2%)</span>
                         </button>
                     ) : (
-                        <button className="combat-btn" onClick={feedBeast}>
-                            {isWaiting ? "🚀 START GAME" : "👊 SMASH"}
+                        <button className="combat-btn" onClick={feedBeast} disabled={isProcessing}>
+                            {isProcessing ? "..." : (isWaiting ? "🚀 START GAME" : "👊 SMASH")}
                         </button>
                     )}
                 </div>
