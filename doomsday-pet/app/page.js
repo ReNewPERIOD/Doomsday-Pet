@@ -4,7 +4,7 @@ import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { Program, AnchorProvider, web3 } from "@project-serum/anchor";
 import idl from "./idl.json";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
-import { ConnectionProvider, WalletProvider, useWallet, useConnection } from "@solana-wallet-adapter-react";
+import { ConnectionProvider, WalletProvider, useWallet, useConnection } from "@solana/wallet-adapter-react";
 import { WalletModalProvider, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
