@@ -10,11 +10,12 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 // --- CẤU HÌNH ---
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
+// HÃY ĐẢM BẢO ĐÂY LÀ ĐỊA CHỈ MỚI NHẤT SAU KHI DEPLOY LẠI
 const GAME_ADDRESS = new PublicKey("5QpRbTGvAMq6EbYFjUhK7YH9SKBEGvRrW3KHjwtrK711");
 
-// --- URL VIDEO ---
-const VIDEO_NORMAL   = "/v1.mp4"; 
-const VIDEO_DAMAGED  = "/v2.mp4"; 
+// --- URL ---
+const VIDEO_NORMAL = "/v1.mp4"; 
+const VIDEO_DAMAGED = "/v2.mp4"; 
 const VIDEO_DEFEATED = "/v3.mp4"; 
 
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
@@ -34,29 +35,23 @@ const styles = `
     100% { transform: translateX(0) scale(1); }
   }
 
-  /* CONTAINER CHỨA 3 VIDEO */
-  .video-stack {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    z-index: 0;
-    background: #000;
+  @keyframes screen-shake-light { 0% { transform: translate(0, 0); } 25% { transform: translate(-3px, 3px); } 75% { transform: translate(3px, -3px); } 100% { transform: translate(0, 0); } }
+  @keyframes screen-shake-strong { 0% { transform: translate(0, 0); } 20% { transform: translate(-7px, 7px); } 40% { transform: translate(7px, -7px); } 60% { transform: translate(-7px, 7px); } 80% { transform: translate(7px, -7px); } 100% { transform: translate(0, 0); } }
+
+  .game-wrapper {
+    position: relative; width: 100vw; height: 100vh; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: flex-end;
   }
 
-  /* CSS CHO TỪNG VIDEO */
-  .bg-video-layer {
+  .bg-video {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; 
-    transition: opacity 0.5s ease-in-out; 
-    opacity: 0; 
+    object-fit: cover; z-index: 0;
+    filter: brightness(0.6);
+    transition: filter 0.2s; 
   }
-  .bg-video-layer.active { opacity: 1; z-index: 1; filter: brightness(0.7); }
 
-  @keyframes shake-strong { 
-     0% { transform: translate(0, 0); } 
-     25% { transform: translate(-5px, 5px); } 
-     75% { transform: translate(5px, -5px); } 
-     100% { transform: translate(0, 0); } 
-  }
-  .is-shaking { animation: shake-strong 0.3s cubic-bezier(.36,.07,.19,.97) both; }
+  .bg-hit-light { animation: screen-shake-light 0.3s ease-out; }
+  .bg-hit-strong { animation: screen-shake-strong 0.4s ease-in-out; filter: hue-rotate(-20deg) contrast(1.2) brightness(1.2); }
 
   .hero-layer {
     position: absolute; right: 2%; bottom: 20%; width: 25%; max-width: 300px; 
@@ -69,15 +64,10 @@ const styles = `
   }
 
   @media (max-width: 768px) {
-    .bg-video-layer { object-position: 40% center; }
+    .bg-video { object-position: 65% center; }
     .fist-layer { width: 70%; bottom: 35%; right: 5%; }
     .hero-layer { width: 40%; bottom: 25%; right: -10%; }
-    .extra-hud { 
-        top: 80px !important; right: 10px !important; left: auto !important; 
-        width: 130px !important; padding: 5px !important; 
-        font-size: 0.6rem !important; background: rgba(0,0,0,0.6) !important; 
-        border: 1px solid rgba(0,229,255,0.3) !important;
-    }
+    .extra-hud { top: 75px !important; right: 10px !important; left: auto !important; width: 140px !important; padding: 5px !important; font-size: 0.6rem !important; background: rgba(0,0,0,0.6) !important; border: 1px solid rgba(0,229,255,0.3) !important; }
     .combat-btn { padding: 15px; font-size: 1.2rem; }
   }
 
@@ -116,20 +106,37 @@ const styles = `
   }
   .extra-hud small { font-weight: 400; font-size: 0.8rem; color: #ccc; }
 
-  .music-btn {
-    position: fixed; top: 80px; left: 20px; z-index: 50;
-    background: rgba(0,0,0,0.6); border: 1px solid #00e5ff;
-    color: #00e5ff; padding: 10px; cursor: pointer;
-    font-family: 'Press Start 2P'; font-size: 0.8rem;
-    border-radius: 50%; width: 40px; height: 40px;
-    display: flex; align-items: center; justify-content: center;
-  }
+  .video-stack { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background: #000; }
+  .bg-video-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.5s ease-in-out; opacity: 0; }
+  .bg-video-layer.active { opacity: 1; z-index: 1; filter: brightness(0.7); }
+  .is-shaking { animation: screen-shake-strong 0.3s; }
+
+  .music-btn { position: fixed; top: 80px; left: 20px; z-index: 50; background: rgba(0,0,0,0.6); border: 1px solid #00e5ff; color: #00e5ff; padding: 10px; cursor: pointer; font-family: 'Press Start 2P'; font-size: 0.8rem; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
 `;
 
 const shortenAddress = (address) => {
   if (!address) return "WAITING...";
   const str = address.toString();
   return str.slice(0, 4) + ".." + str.slice(-4);
+};
+
+// COMPONENT VIDEO
+const BackgroundVideo = ({ src, shakeClass }) => {
+    const videoRef = useRef(null);
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.load();
+            videoRef.current.play().catch(() => {});
+        }
+    }, [src]);
+    return (
+        <video 
+            ref={videoRef}
+            className={`bg-video ${shakeClass}`} 
+            autoPlay loop muted playsInline
+            src={src}
+        />
+    );
 };
 
 function GameContent() {
@@ -143,6 +150,7 @@ function GameContent() {
   const [isHit, setIsHit] = useState(false);
   const [lastHitter, setLastHitter] = useState(null);
   const [topHitters, setTopHitters] = useState([]);
+  
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
 
@@ -175,7 +183,6 @@ function GameContent() {
 
       const lastFed = account.lastFedTimestamp.toNumber();
       
-      // LOGIC FIRST BLOOD (CHỜ)
       if (lastFed === 0) {
           setTimeLeft(ttl);
       } else {
@@ -201,16 +208,10 @@ function GameContent() {
   }, [publicKey, isClient, gameState]);
 
   const hpPercent = maxTime > 0 ? Math.min(100, (timeLeft / maxTime) * 100) : 100;
-  
   const isWaiting = gameState && gameState.lastFedTimestamp.toNumber() === 0;
   const isDead = timeLeft === 0 && !isWaiting;
 
-  const getShakeClass = () => {
-    if (!isHit) return "";
-    if (hpPercent < 50) return "is-shaking";
-    return "is-shaking";
-  };
-
+  // LOGIC TRẠNG THÁI VIDEO
   const getCurrentVideoState = () => {
       if (isDead) return 'dead'; 
       if (isHit) return 'damaged'; 
@@ -218,6 +219,12 @@ function GameContent() {
       return 'normal';
   };
   const currentState = getCurrentVideoState();
+
+  const getShakeClass = () => {
+    if (!isHit) return "";
+    if (hpPercent < 50) return "is-shaking";
+    return "is-shaking";
+  };
 
   const feedBeast = async () => {
     if (!publicKey) return;
@@ -233,8 +240,16 @@ function GameContent() {
     } catch (err) { alert("Missed! " + err.message); }
   };
 
+  // --- LOGIC CLAIM SỬA LẠI: CHECK TIME DƯ 2S ---
   const claimPrize = async () => {
      if (!publicKey || !gameState) return;
+     
+     // Thêm check Frontend: Nếu time > 0 thì chưa cho bấm (chặn bớt spam)
+     if (timeLeft > 0) {
+         alert("Wait until timer hits 0s!");
+         return;
+     }
+
      try {
        const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
        const program = new Program(idl, PROGRAM_ID, provider);
@@ -242,11 +257,11 @@ function GameContent() {
        await program.methods.claimReward().accounts({
          gameAccount: GAME_ADDRESS, hunter: publicKey, winner: winnerAddress
        }).rpc();
-       alert(`🏆 MISSION SUCCESS! Game Resetting...`);
+       alert(`🏆 MISSION SUCCESS! Bounty Earned!`);
        setTimeout(() => { window.location.reload(); }, 2000);
      } catch (err) { 
         if (err.message.includes("GameIsAlive")) {
-            alert("⚠️ WAIT! The Beast is not dead yet. Wait a few seconds...");
+            alert("⚠️ Please wait 3 more seconds for blockchain sync...");
         } else {
             alert("Error: " + err.message); 
         }
@@ -259,6 +274,7 @@ function GameContent() {
     <div className="game-wrapper">
       <style>{styles}</style>
 
+      {/* 3 VIDEO STACK */}
       <div className={`video-stack ${getShakeClass()}`}>
           <video className={`bg-video-layer ${currentState === 'normal' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_NORMAL} type="video/mp4" /></video>
           <video className={`bg-video-layer ${currentState === 'damaged' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_DAMAGED} type="video/mp4" /></video>
