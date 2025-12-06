@@ -12,12 +12,11 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
 const GAME_ADDRESS = new PublicKey("5jBrUP253WhFnq5ertP9jpdbsDQetZ2XmC9TgMfWbEK");
 
-// --- VIDEO (DÙNG FILE TRONG THƯ MỤC PUBLIC ĐỂ KHÔNG LAG) ---
+// --- URL VIDEO ---
 const VIDEO_NORMAL   = "/v1.mp4"; 
 const VIDEO_DAMAGED  = "/v2.mp4"; 
 const VIDEO_DEFEATED = "/v3.mp4"; 
 
-// --- HÌNH ẢNH & ÂM THANH ---
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
@@ -35,25 +34,22 @@ const styles = `
     100% { transform: translateX(0) scale(1); }
   }
 
-  /* CONTAINER CHỨA 3 VIDEO (KỸ THUẬT CHỐNG GIẬT) */
+  /* CONTAINER CHỨA 3 VIDEO */
   .video-stack {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     z-index: 0;
     background: #000;
   }
 
-  /* CSS CHO TỪNG VIDEO LAYER */
+  /* CSS CHO TỪNG VIDEO */
   .bg-video-layer {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; 
-    transition: opacity 0.5s ease-in-out; /* Chuyển cảnh mượt */
-    opacity: 0; /* Mặc định ẩn */
+    transition: opacity 0.5s ease-in-out; 
+    opacity: 0; 
   }
-
-  /* Class để hiện video đang chọn */
   .bg-video-layer.active { opacity: 1; z-index: 1; filter: brightness(0.7); }
 
-  /* Hiệu ứng rung màn hình có lực */
   @keyframes shake-strong { 
      0% { transform: translate(0, 0); } 
      25% { transform: translate(-5px, 5px); } 
@@ -72,7 +68,6 @@ const styles = `
     filter: drop-shadow(0 0 15px #00e5ff);
   }
 
-  /* MOBILE OPTIMIZATION */
   @media (max-width: 768px) {
     .bg-video-layer { object-position: 40% center; }
     .fist-layer { width: 70%; bottom: 35%; right: 5%; }
@@ -121,7 +116,6 @@ const styles = `
   }
   .extra-hud small { font-weight: 400; font-size: 0.8rem; color: #ccc; }
 
-  /* NÚT BẬT/TẮT NHẠC */
   .music-btn {
     position: fixed; top: 80px; left: 20px; z-index: 50;
     background: rgba(0,0,0,0.6); border: 1px solid #00e5ff;
@@ -143,13 +137,12 @@ function GameContent() {
   const { publicKey } = useWallet();
   const [gameState, setGameState] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [maxTime, setMaxTime] = useState(0); 
+  const [maxTime, setMaxTime] = useState(60); 
   const [potBalance, setPotBalance] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const [isHit, setIsHit] = useState(false);
   const [lastHitter, setLastHitter] = useState(null);
   const [topHitters, setTopHitters] = useState([]);
-  
   const audioRef = useRef(null);
   const [isMuted, setIsMuted] = useState(false);
 
@@ -182,9 +175,9 @@ function GameContent() {
 
       const lastFed = account.lastFedTimestamp.toNumber();
       
-      // === LOGIC FIRST BLOOD (CHỜ) ===
+      // LOGIC FIRST BLOOD (CHỜ)
       if (lastFed === 0) {
-          setTimeLeft(ttl); // Nếu là 0 thì hiển thị full time (vd: 45s)
+          setTimeLeft(ttl);
       } else {
           const now = Math.floor(Date.now() / 1000);
           setTimeLeft(Math.max(0, (lastFed + ttl) - now));
@@ -200,7 +193,6 @@ function GameContent() {
     fetchGameState(); 
     const interval = setInterval(() => {
         fetchGameState();
-        // Chỉ trừ thời gian nếu game ĐANG CHẠY (lastFed != 0)
         if (gameState && gameState.lastFedTimestamp.toNumber() !== 0) {
              setTimeLeft((prev) => Math.max(0, prev - 1));
         }
@@ -210,7 +202,6 @@ function GameContent() {
 
   const hpPercent = maxTime > 0 ? Math.min(100, (timeLeft / maxTime) * 100) : 100;
   
-  // Trạng thái Game
   const isWaiting = gameState && gameState.lastFedTimestamp.toNumber() === 0;
   const isDead = timeLeft === 0 && !isWaiting;
 
@@ -220,23 +211,19 @@ function GameContent() {
     return "is-shaking";
   };
 
-  // LOGIC CHỌN VIDEO (Có tính cả trạng thái Waiting)
-  const getVideoState = () => {
+  const getCurrentVideoState = () => {
       if (isDead) return 'dead'; 
       if (isHit) return 'damaged'; 
-      // Nếu đang chờ hoặc máu > 50% -> Video Normal
-      if (isWaiting || hpPercent >= 50) return 'normal';
-      // Máu < 50% -> Video Damaged
-      return 'damaged';
+      if (hpPercent < 50 && !isWaiting) return 'damaged';
+      return 'normal';
   };
-  const currentState = getVideoState();
+  const currentState = getCurrentVideoState();
 
   const feedBeast = async () => {
     if (!publicKey) return;
     try {
       if(audioRef.current && audioRef.current.paused && !isMuted) audioRef.current.play();
       setIsHit(true); setTimeout(() => setIsHit(false), 400); 
-      
       const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
       const program = new Program(idl, PROGRAM_ID, provider);
       await program.methods.feed().accounts({
@@ -255,9 +242,15 @@ function GameContent() {
        await program.methods.claimReward().accounts({
          gameAccount: GAME_ADDRESS, hunter: publicKey, winner: winnerAddress
        }).rpc();
-       alert(`🏆 MISSION SUCCESS! Bounty Earned!`);
+       alert(`🏆 MISSION SUCCESS! Game Resetting...`);
        setTimeout(() => { window.location.reload(); }, 2000);
-     } catch (err) { alert("Error: " + err.message); }
+     } catch (err) { 
+        if (err.message.includes("GameIsAlive")) {
+            alert("⚠️ WAIT! The Beast is not dead yet. Wait a few seconds...");
+        } else {
+            alert("Error: " + err.message); 
+        }
+     }
   };
 
   if (!isClient) return null;
@@ -266,7 +259,6 @@ function GameContent() {
     <div className="game-wrapper">
       <style>{styles}</style>
 
-      {/* --- 3 VIDEO STACK (KHÔNG GIẬT) --- */}
       <div className={`video-stack ${getShakeClass()}`}>
           <video className={`bg-video-layer ${currentState === 'normal' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_NORMAL} type="video/mp4" /></video>
           <video className={`bg-video-layer ${currentState === 'damaged' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_DAMAGED} type="video/mp4" /></video>
@@ -288,7 +280,7 @@ function GameContent() {
             <div style={{ flex: 2, minWidth: "200px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#ff3300", fontWeight: "bold" }}>
                     <span className="font-tech" style={{fontSize: "0.9rem"}}>BTC ARMOR</span>
-                    <span className="font-tech" style={{fontSize: "1.2rem"}}>{timeLeft}s</span>
+                    <span className="font-tech" style={{fontSize: "1.2rem"}}>{isWaiting ? "60s" : timeLeft + "s"}</span>
                 </div>
                 <div className="chart-hp-frame">
                     <div className="chart-hp-fill" style={{ width: `${hpPercent}%` }}></div>
@@ -304,13 +296,13 @@ function GameContent() {
 
             <div style={{ flex: 1, minWidth: "150px" }}>
                 <div style={{ width: "100%" }}>
-                    {!isDead ? (
-                        <button className="combat-btn" onClick={feedBeast}>
-                            {isWaiting ? "🚀 START GAME" : "👊 SMASH"}
-                        </button>
-                    ) : (
+                    {isDead ? (
                         <button className="combat-btn btn-loot" onClick={claimPrize}>
                             💎 CLAIM <span style={{fontSize: "0.7rem"}}>(2%)</span>
+                        </button>
+                    ) : (
+                        <button className="combat-btn" onClick={feedBeast}>
+                            {isWaiting ? "🚀 START GAME" : "👊 SMASH"}
                         </button>
                     )}
                 </div>
