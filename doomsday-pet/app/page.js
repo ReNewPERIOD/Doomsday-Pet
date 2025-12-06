@@ -8,20 +8,31 @@ import { ConnectionProvider, WalletProvider, useWallet, useConnection } from "@s
 import { WalletModalProvider, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
-// --- CẤU HÌNH ---
-const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
-const GAME_ADDRESS = new PublicKey("4DcJZNe1C4YGsj8yuVyCe9UHcF1SG2Z7Uffp6MUvrBdF");
+// ==================================================================
+// 🎛️ KHU VỰC CẤU HÌNH (CONTROL PANEL) - CHỈ CẦN SỬA Ở ĐÂY
+// ==================================================================
 
-// --- URL VIDEO (ĐÃ ĐỔI SANG LINK NỘI BỘ SIÊU TỐC) ---
-// ⚠️ Đảm bảo bạn đã để 3 file v1.mp4, v2.mp4, v3.mp4 trong thư mục 'public'
-const VIDEO_NORMAL   = "/v1.mp4"; // Boss khỏe
-const VIDEO_DAMAGED  = "/v2.mp4"; // Boss bị thương
-const VIDEO_DEFEATED = "/v3.mp4"; // Boss chết
+// 1. ĐỊA CHỈ GAME (Mỗi lần Deploy lại Smart Contract thì thay cái này)
+const GAME_ADDRESS_KEY = "4DcJZNe1C4YGsj8yuVyCe9UHcF1SG2Z7Uffp6MUvrBdF";
 
-// --- URL HÌNH ẢNH ---
+// 2. VIDEO NỀN (Nên để trong thư mục public của dự án để load nhanh)
+const VIDEO_NORMAL   = "https://files.catbox.moe/699hyi.mp4"; // Boss Khỏe
+const VIDEO_DAMAGED  = "https://files.catbox.moe/jj5nc0.mp4"; // Boss Đau
+const VIDEO_DEFEATED = "https://files.catbox.moe/3hcgvw.mp4"; // Boss Chết
+
+// 3. HÌNH ẢNH NHÂN VẬT
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
+
+// 4. ÂM THANH
 const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
+
+// ==================================================================
+// ⛔ KHÔNG CẦN SỬA GÌ DƯỚI NÀY NỮA (LOGIC TỰ ĐỘNG)
+// ==================================================================
+
+const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
+const GAME_ADDRESS = new PublicKey(GAME_ADDRESS_KEY);
 
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -37,14 +48,13 @@ const styles = `
   }
 
   @keyframes screen-shake-light { 0% { transform: translate(0, 0); } 25% { transform: translate(-3px, 3px); } 75% { transform: translate(3px, -3px); } 100% { transform: translate(0, 0); } }
-  @keyframes screen-shake-strong { 0% { transform: translate(0, 0); } 20% { transform: translate(-7px, 7px); } 40% { transform: translate(7px, -7px); } 60% { transform: translate(-7px, 7px); } 80% { transform: translate(7px, -7px); } 100% { transform: translate(0, 0); } }
+  @keyframes screen-shake-strong { 0% { transform: translate(0, 0) rotate(0deg); } 20% { transform: translate(-10px, 10px) rotate(-1deg); } 40% { transform: translate(10px, -10px) rotate(1deg); } 60% { transform: translate(-10px, 10px) rotate(0deg); } 80% { transform: translate(10px, -10px) rotate(-1deg); } 100% { transform: translate(0, 0) rotate(0deg); } }
 
   .game-wrapper {
     position: relative; width: 100vw; height: 100vh; overflow: hidden;
     display: flex; flex-direction: column; justify-content: flex-end;
   }
 
-  /* VIDEO NỀN */
   .bg-video {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; z-index: 0;
@@ -55,7 +65,6 @@ const styles = `
   .bg-hit-light { animation: screen-shake-light 0.3s ease-out; }
   .bg-hit-strong { animation: screen-shake-strong 0.4s ease-in-out; filter: hue-rotate(-20deg) contrast(1.2) brightness(1.2); }
 
-  /* HERO & FIST - RESPONSIVE */
   .hero-layer {
     position: absolute; right: 2%; bottom: 20%; width: 25%; max-width: 300px; 
     z-index: 4; filter: drop-shadow(0 0 20px #00e5ff); pointer-events: none;
@@ -66,23 +75,11 @@ const styles = `
     filter: drop-shadow(0 0 15px #00e5ff);
   }
 
-  /* --- MOBILE OPTIMIZATION --- */
   @media (max-width: 768px) {
-    .bg-video { object-position: 40% center !important; } /* Canh chỉnh Boss vào giữa hơn */
+    .bg-video { object-position: 40% center; } 
     .fist-layer { width: 70%; bottom: 35%; right: 5%; }
     .hero-layer { width: 40%; bottom: 25%; right: -10%; }
-    
-    /* BẢNG XẾP HẠNG MOBILE: SÁT BÊN PHẢI, DƯỚI NÚT VÍ */
-    .extra-hud { 
-        top: 75px !important; /* Cách mép trên để né nút Ví */
-        right: 10px !important; /* Sát mép phải */
-        left: auto !important; 
-        width: 140px !important; 
-        padding: 5px !important; 
-        font-size: 0.6rem !important; 
-        background: rgba(0,0,0,0.6) !important; 
-        border: 1px solid rgba(0,229,255,0.3) !important;
-    }
+    .extra-hud { top: 75px !important; right: 10px !important; left: auto !important; width: 140px !important; padding: 5px !important; font-size: 0.6rem !important; background: rgba(0,0,0,0.6) !important; border: 1px solid rgba(0,229,255,0.3) !important; }
     .combat-btn { padding: 15px; font-size: 1.2rem; }
   }
 
@@ -128,7 +125,7 @@ const shortenAddress = (address) => {
   return str.slice(0, 4) + ".." + str.slice(-4);
 };
 
-// COMPONENT VIDEO (Giữ nguyên để không reload)
+// COMPONENT VIDEO
 const BackgroundVideo = ({ src, shakeClass }) => {
     const videoRef = useRef(null);
     useEffect(() => {
@@ -142,9 +139,8 @@ const BackgroundVideo = ({ src, shakeClass }) => {
             ref={videoRef}
             className={`bg-video ${shakeClass}`} 
             autoPlay loop muted playsInline
-        >
-            <source src={src} type="video/mp4" />
-        </video>
+            src={src}
+        />
     );
 };
 
@@ -153,13 +149,12 @@ function GameContent() {
   const { publicKey } = useWallet();
   const [gameState, setGameState] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [maxTime, setMaxTime] = useState(60); 
+  const [maxTime, setMaxTime] = useState(0); // ⚠️ TỰ ĐỘNG: Khởi tạo bằng 0 để chờ Blockchain
   const [potBalance, setPotBalance] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const [isHit, setIsHit] = useState(false);
   const [lastHitter, setLastHitter] = useState(null);
   const [topHitters, setTopHitters] = useState([]);
-  
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -171,7 +166,7 @@ function GameContent() {
 
   useEffect(() => {
     if (publicKey && audioRef.current) {
-        audioRef.current.play().catch(e => console.log("Audio waiting for interaction"));
+        audioRef.current.play().catch(e => console.log("Audio waiting"));
     }
   }, [publicKey]);
 
@@ -181,12 +176,19 @@ function GameContent() {
       const program = new Program(idl, PROGRAM_ID, provider);
       const account = await program.account.gameData.fetch(GAME_ADDRESS);
       const balance = await connection.getBalance(GAME_ADDRESS);
+      
       setGameState(account);
       setPotBalance(balance / 1000000000); 
-      setMaxTime(account.timeToLive.toNumber() || 60);
+      
+      // 🔥 CẬP NHẬT TỰ ĐỘNG MAX TIME TỪ BLOCKCHAIN 🔥
+      // Nó sẽ lấy số giây chính xác từ Smart Contract (vd: 45, 60, 180...)
+      const ttl = account.timeToLive.toNumber();
+      if (ttl > 0) setMaxTime(ttl); 
+
       const now = Math.floor(Date.now() / 1000);
       const lastFed = account.lastFedTimestamp.toNumber();
-      const ttl = account.timeToLive.toNumber();
+      
+      // Tính thời gian còn lại
       setTimeLeft(Math.max(0, (lastFed + ttl) - now));
       setLastHitter(account.lastFeeder?.toString() || null);
       
@@ -208,7 +210,8 @@ function GameContent() {
     return () => clearInterval(interval);
   }, [publicKey, isClient]);
 
-  const hpPercent = Math.min(100, (timeLeft / maxTime) * 100);
+  // Nếu maxTime chưa load kịp (vẫn = 0), thì tạm tính là 100% để không bị lỗi chia cho 0
+  const hpPercent = maxTime > 0 ? Math.min(100, (timeLeft / maxTime) * 100) : 100;
   const isDead = timeLeft === 0;
 
   const getShakeClass = () => {
