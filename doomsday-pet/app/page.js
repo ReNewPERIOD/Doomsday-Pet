@@ -10,14 +10,14 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 // --- CẤU HÌNH ---
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
-const GAME_ADDRESS = new PublicKey("4DcJZNe1C4YGsj8yuVyCe9UHcF1SG2Z7Uffp6MUvrBdF");
+const GAME_ADDRESS = new PublicKey("5jBrUP253WhFnq5ertP9jpdbsDQetZ2XmC9TgMfWbEK");
 
-// --- VIDEO (DÙNG FILE NỘI BỘ TRONG PUBLIC ĐỂ LOAD NHANH) ---
-// Hãy đảm bảo bạn đã copy 3 file vào thư mục public
+// --- VIDEO (DÙNG FILE TRONG THƯ MỤC PUBLIC ĐỂ KHÔNG LAG) ---
 const VIDEO_NORMAL   = "/v1.mp4"; 
 const VIDEO_DAMAGED  = "/v2.mp4"; 
 const VIDEO_DEFEATED = "/v3.mp4"; 
 
+// --- HÌNH ẢNH & ÂM THANH ---
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
@@ -35,32 +35,32 @@ const styles = `
     100% { transform: translateX(0) scale(1); }
   }
 
-  /* CONTAINER CHỨA 3 VIDEO */
+  /* CONTAINER CHỨA 3 VIDEO (KỸ THUẬT CHỐNG GIẬT) */
   .video-stack {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     z-index: 0;
     background: #000;
   }
 
-  /* CSS CHO TỪNG VIDEO */
+  /* CSS CHO TỪNG VIDEO LAYER */
   .bg-video-layer {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; 
-    transition: opacity 0.5s ease-in-out; /* Chuyển cảnh mượt trong 0.5s */
+    transition: opacity 0.5s ease-in-out; /* Chuyển cảnh mượt */
     opacity: 0; /* Mặc định ẩn */
   }
 
   /* Class để hiện video đang chọn */
   .bg-video-layer.active { opacity: 1; z-index: 1; filter: brightness(0.7); }
 
-  /* Hiệu ứng rung màn hình */
+  /* Hiệu ứng rung màn hình có lực */
   @keyframes shake-strong { 
      0% { transform: translate(0, 0); } 
      25% { transform: translate(-5px, 5px); } 
      75% { transform: translate(5px, -5px); } 
      100% { transform: translate(0, 0); } 
   }
-  .is-shaking { animation: shake-strong 0.3s; }
+  .is-shaking { animation: shake-strong 0.3s cubic-bezier(.36,.07,.19,.97) both; }
 
   .hero-layer {
     position: absolute; right: 2%; bottom: 20%; width: 25%; max-width: 300px; 
@@ -72,6 +72,7 @@ const styles = `
     filter: drop-shadow(0 0 15px #00e5ff);
   }
 
+  /* MOBILE OPTIMIZATION */
   @media (max-width: 768px) {
     .bg-video-layer { object-position: 40% center; }
     .fist-layer { width: 70%; bottom: 35%; right: 5%; }
@@ -142,42 +143,29 @@ function GameContent() {
   const { publicKey } = useWallet();
   const [gameState, setGameState] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
-  const [maxTime, setMaxTime] = useState(60); 
+  const [maxTime, setMaxTime] = useState(0); 
   const [potBalance, setPotBalance] = useState(0);
   const [isClient, setIsClient] = useState(false);
   const [isHit, setIsHit] = useState(false);
   const [lastHitter, setLastHitter] = useState(null);
   const [topHitters, setTopHitters] = useState([]);
   
-  // Âm thanh
   const audioRef = useRef(null);
-  const [isMuted, setIsMuted] = useState(false); // Mặc định bật tiếng
+  const [isMuted, setIsMuted] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
     audioRef.current = new Audio(AUDIO_BATTLE_THEME);
     audioRef.current.loop = true;
     audioRef.current.volume = 0.6;
-    
-    // Cố gắng phát nhạc ngay (có thể bị chặn bởi trình duyệt)
     const playPromise = audioRef.current.play();
-    if (playPromise !== undefined) {
-      playPromise.catch(() => {
-        console.log("Auto-play prevented. Waiting for interaction.");
-      });
-    }
+    if (playPromise !== undefined) playPromise.catch(() => {});
   }, []);
 
-  // Toggle Âm thanh
   const toggleSound = () => {
       if (!audioRef.current) return;
-      if (audioRef.current.paused) {
-          audioRef.current.play();
-          setIsMuted(false);
-      } else {
-          audioRef.current.pause();
-          setIsMuted(true);
-      }
+      if (audioRef.current.paused) { audioRef.current.play(); setIsMuted(false); } 
+      else { audioRef.current.pause(); setIsMuted(true); }
   };
 
   const fetchGameState = async () => {
@@ -188,18 +176,22 @@ function GameContent() {
       const balance = await connection.getBalance(GAME_ADDRESS);
       setGameState(account);
       setPotBalance(balance / 1000000000); 
-      setMaxTime(account.timeToLive.toNumber() || 60);
-      const now = Math.floor(Date.now() / 1000);
-      const lastFed = account.lastFedTimestamp.toNumber();
-      const ttl = account.timeToLive.toNumber();
-      setTimeLeft(Math.max(0, (lastFed + ttl) - now));
-      setLastHitter(account.lastFeeder?.toString() || null);
       
-      setTopHitters([
-        { address: 'Ff3r...1a2b', hits: 15 },
-        { address: 'Aa2d...4e5f', hits: 12 },
-        { address: 'Cc9t...7y8z', hits: 8 }
-      ]);
+      const ttl = account.timeToLive.toNumber();
+      if(ttl > 0) setMaxTime(ttl);
+
+      const lastFed = account.lastFedTimestamp.toNumber();
+      
+      // === LOGIC FIRST BLOOD (CHỜ) ===
+      if (lastFed === 0) {
+          setTimeLeft(ttl); // Nếu là 0 thì hiển thị full time (vd: 45s)
+      } else {
+          const now = Math.floor(Date.now() / 1000);
+          setTimeLeft(Math.max(0, (lastFed + ttl) - now));
+      }
+
+      setLastHitter(account.lastFeeder?.toString() || null);
+      setTopHitters([{ address: 'Ff3r...1a2b', hits: 15 }, { address: 'Aa2d...4e5f', hits: 12 }, { address: 'Cc9t...7y8z', hits: 8 }]);
     } catch (err) { }
   };
 
@@ -208,13 +200,19 @@ function GameContent() {
     fetchGameState(); 
     const interval = setInterval(() => {
         fetchGameState();
-        setTimeLeft((prev) => Math.max(0, prev - 1));
+        // Chỉ trừ thời gian nếu game ĐANG CHẠY (lastFed != 0)
+        if (gameState && gameState.lastFedTimestamp.toNumber() !== 0) {
+             setTimeLeft((prev) => Math.max(0, prev - 1));
+        }
     }, 1000);
     return () => clearInterval(interval);
-  }, [publicKey, isClient]);
+  }, [publicKey, isClient, gameState]);
 
-  const hpPercent = Math.min(100, (timeLeft / maxTime) * 100);
-  const isDead = timeLeft === 0;
+  const hpPercent = maxTime > 0 ? Math.min(100, (timeLeft / maxTime) * 100) : 100;
+  
+  // Trạng thái Game
+  const isWaiting = gameState && gameState.lastFedTimestamp.toNumber() === 0;
+  const isDead = timeLeft === 0 && !isWaiting;
 
   const getShakeClass = () => {
     if (!isHit) return "";
@@ -222,22 +220,23 @@ function GameContent() {
     return "is-shaking";
   };
 
-  // LOGIC TRẠNG THÁI VIDEO
+  // LOGIC CHỌN VIDEO (Có tính cả trạng thái Waiting)
   const getVideoState = () => {
       if (isDead) return 'dead'; 
       if (isHit) return 'damaged'; 
-      if (hpPercent < 50) return 'damaged';
-      return 'normal';
+      // Nếu đang chờ hoặc máu > 50% -> Video Normal
+      if (isWaiting || hpPercent >= 50) return 'normal';
+      // Máu < 50% -> Video Damaged
+      return 'damaged';
   };
   const currentState = getVideoState();
 
   const feedBeast = async () => {
     if (!publicKey) return;
     try {
-      // Nếu nhạc chưa chạy thì chạy luôn khi bấm nút
       if(audioRef.current && audioRef.current.paused && !isMuted) audioRef.current.play();
-
       setIsHit(true); setTimeout(() => setIsHit(false), 400); 
+      
       const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
       const program = new Program(idl, PROGRAM_ID, provider);
       await program.methods.feed().accounts({
@@ -267,39 +266,23 @@ function GameContent() {
     <div className="game-wrapper">
       <style>{styles}</style>
 
-      {/* --- HỆ THỐNG 3 VIDEO CHỒNG LỚP (ZERO LATENCY) --- */}
+      {/* --- 3 VIDEO STACK (KHÔNG GIẬT) --- */}
       <div className={`video-stack ${getShakeClass()}`}>
-          <video className={`bg-video-layer ${currentState === 'normal' ? 'active' : ''}`} autoPlay loop muted playsInline>
-              <source src={VIDEO_NORMAL} type="video/mp4" />
-          </video>
-          <video className={`bg-video-layer ${currentState === 'damaged' ? 'active' : ''}`} autoPlay loop muted playsInline>
-              <source src={VIDEO_DAMAGED} type="video/mp4" />
-          </video>
-          <video className={`bg-video-layer ${currentState === 'dead' ? 'active' : ''}`} autoPlay loop muted playsInline>
-              <source src={VIDEO_DEFEATED} type="video/mp4" />
-          </video>
+          <video className={`bg-video-layer ${currentState === 'normal' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_NORMAL} type="video/mp4" /></video>
+          <video className={`bg-video-layer ${currentState === 'damaged' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_DAMAGED} type="video/mp4" /></video>
+          <video className={`bg-video-layer ${currentState === 'dead' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_DEFEATED} type="video/mp4" /></video>
       </div>
 
-      {/* CÁC LỚP NHÂN VẬT */}
       {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
-      {timeLeft > 0 && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
+      {(!isDead && !isWaiting) && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
 
-      {/* HEADER */}
       <div style={{ position: "absolute", top: 0, left: 0, width: "100%", padding: "20px", display: "flex", justifyContent: "space-between", zIndex: 30, alignItems: "center" }}>
-        <div>
-            <h1 className="font-pixel" style={{ margin: 0, fontSize: "1.2rem", color: "#fff", textShadow: "0 0 20px #00e5ff" }}>
-                WEB3 <span style={{color:"#00e5ff"}}>FIGHTER</span>
-            </h1>
-        </div>
+        <div><h1 className="font-pixel" style={{ margin: 0, fontSize: "1.2rem", color: "#fff", textShadow: "0 0 20px #00e5ff" }}>WEB3 <span style={{color:"#00e5ff"}}>FIGHTER</span></h1></div>
         <WalletMultiButton style={{ background: "rgba(0,0,0,0.5)", border: "2px solid #00e5ff", fontFamily: "'Rajdhani'", fontSize: "0.8rem", height: "36px", padding: "0 10px" }} />
       </div>
 
-      {/* NÚT SOUND */}
-      <button className="music-btn" onClick={toggleSound}>
-          {isMuted || (audioRef.current && audioRef.current.paused) ? "🔇" : "🔊"}
-      </button>
+      <button className="music-btn" onClick={toggleSound}>{isMuted || (audioRef.current && audioRef.current.paused) ? "🔇" : "🔊"}</button>
 
-      {/* DASHBOARD */}
       {publicKey ? (
         <div className="hud-overlay">
             <div style={{ flex: 2, minWidth: "200px" }}>
@@ -322,7 +305,9 @@ function GameContent() {
             <div style={{ flex: 1, minWidth: "150px" }}>
                 <div style={{ width: "100%" }}>
                     {!isDead ? (
-                        <button className="combat-btn" onClick={feedBeast}>👊 SMASH</button>
+                        <button className="combat-btn" onClick={feedBeast}>
+                            {isWaiting ? "🚀 START GAME" : "👊 SMASH"}
+                        </button>
                     ) : (
                         <button className="combat-btn btn-loot" onClick={claimPrize}>
                             💎 CLAIM <span style={{fontSize: "0.7rem"}}>(2%)</span>
@@ -333,9 +318,7 @@ function GameContent() {
         </div>
       ) : (
         <div style={{ position: "absolute", bottom: "30%", width: "100%", textAlign: "center", zIndex: 30 }}>
-            <h2 className="font-pixel" style={{ fontSize: "1.5rem", color: "#fff", textShadow: "0 0 30px #00e5ff", animation: "pulse 2s infinite" }}>
-                CONNECT WALLET
-            </h2>
+            <h2 className="font-pixel" style={{ fontSize: "1.5rem", color: "#fff", textShadow: "0 0 30px #00e5ff", animation: "pulse 2s infinite" }}>CONNECT WALLET</h2>
         </div>
       )}
 
@@ -354,7 +337,6 @@ function GameContent() {
           ))}
         </div>
       </div>
-
     </div>
   );
 }
