@@ -12,7 +12,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
 const GAME_ADDRESS = new PublicKey("5QpRbTGvAMq6EbYFjUhK7YH9SKBEGvRrW3KHjwtrK711");
 
-// --- URL (DÙNG FILE TRONG PUBLIC CHO NHANH) ---
+// --- URL ---
 const VIDEO_NORMAL = "/v1.mp4"; 
 const VIDEO_DAMAGED = "/v2.mp4"; 
 const VIDEO_DEFEATED = "/v3.mp4"; 
@@ -54,62 +54,34 @@ const styles = `
   }
   .bg-video-layer.active { opacity: 1; z-index: 1; }
 
-  /* RUNG MÀN HÌNH */
   .bg-hit-light { animation: screen-shake-light 0.3s ease-out; }
   .bg-hit-strong { animation: screen-shake-strong 0.4s ease-in-out; filter: hue-rotate(-20deg) contrast(1.2) brightness(1.2); }
 
-  /* HERO & FIST */
   .hero-layer { position: absolute; right: 2%; bottom: 20%; width: 25%; max-width: 300px; z-index: 4; filter: drop-shadow(0 0 20px #00e5ff); pointer-events: none; }
   .fist-layer { position: absolute; right: 18%; bottom: 25%; width: 45%; max-width: 700px; z-index: 5; animation: punch-loop 0.8s infinite ease-in-out; pointer-events: none; filter: drop-shadow(0 0 15px #00e5ff); }
 
   /* MOBILE OPTIMIZATION */
   @media (max-width: 768px) {
-    .bg-video-layer { object-position: 65% center; } /* Canh giữa Boss */
+    .bg-video-layer { object-position: 65% center; } 
     .fist-layer { width: 70%; bottom: 35%; right: 5%; }
     .hero-layer { width: 40%; bottom: 25%; right: -10%; }
-    
-    /* Bảng xếp hạng nhỏ gọn góc trái trên */
-    .extra-hud { 
-        top: 80px !important; 
-        left: 10px !important; 
-        right: auto !important; 
-        width: 150px !important; 
-        padding: 8px !important; 
-        font-size: 0.65rem !important; 
-        background: rgba(0,0,0,0.6) !important; 
-        border: 1px solid rgba(0,229,255,0.3) !important; 
-    }
+    .extra-hud { top: 80px !important; left: 10px !important; right: auto !important; width: 150px !important; padding: 8px !important; font-size: 0.65rem !important; background: rgba(0,0,0,0.6) !important; border: 1px solid rgba(0,229,255,0.3) !important; }
     .combat-btn { padding: 18px !important; font-size: 1.3rem !important; }
   }
 
-  /* HUD (BẢNG ĐIỀU KHIỂN) */
-  .hud-overlay {
-    position: relative; z-index: 20; width: 100%; padding: 20px 40px 30px;
-    background: linear-gradient(to top, rgba(0,0,0,0.98) 70%, transparent);
-    border-top: 1px solid rgba(0, 229, 255, 0.3);
-    display: flex; gap: 20px; align-items: flex-end;
-    flex-wrap: wrap; 
-  }
-
+  .hud-overlay { position: relative; z-index: 20; width: 100%; padding: 20px 40px 30px; background: linear-gradient(to top, rgba(0,0,0,0.98) 70%, transparent); border-top: 1px solid rgba(0, 229, 255, 0.3); display: flex; gap: 20px; align-items: flex-end; flex-wrap: wrap; }
   .chart-hp-frame { width: 100%; height: 25px; background: rgba(20, 0, 0, 0.6); border: 2px solid #ff3300; transform: skewX(-10deg); overflow: hidden; }
   .chart-hp-fill { height: 100%; background: repeating-linear-gradient(45deg, #ff0000 0, #ff0000 5px, #990000 5px, #990000 10px); box-shadow: 0 0 30px #ff0000; transition: width 0.3s ease-out; }
 
   .combat-btn { width: 100%; padding: 20px; font-size: 1.5rem; font-family: 'Rajdhani', sans-serif; font-weight: 800; border: none; cursor: pointer; color: white; background: linear-gradient(90deg, #00c6ff, #0072ff); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); box-shadow: 0 0 20px rgba(0, 198, 255, 0.5); letter-spacing: 2px; }
   .combat-btn:active { transform: scale(0.95); background: #fff; color: #000; }
-  
   .btn-loot { background: linear-gradient(90deg, #f1c40f, #f39c12); color: black; animation: pulse 1s infinite; }
   @keyframes pulse { 0% { box-shadow: 0 0 0 #f1c40f; } 100% { box-shadow: 0 0 30px #f1c40f; } }
   
   .font-pixel { font-family: 'Press Start 2P', cursive; text-transform: uppercase; }
   .font-tech { font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase; }
 
-  .extra-hud {
-    position: absolute; top: 80px; right: 30px; width: 260px; padding: 15px;
-    border: 1px solid #00e5ff; color: #00e5ff;
-    font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase;
-    background: rgba(0, 0, 0, 0.8); z-index: 50;
-    pointer-events: none;
-  }
+  .extra-hud { position: absolute; top: 80px; right: 30px; width: 260px; padding: 15px; border: 1px solid #00e5ff; color: #00e5ff; font-family: 'Rajdhani', sans-serif; font-weight: 700; text-transform: uppercase; background: rgba(0, 0, 0, 0.8); z-index: 50; pointer-events: none; }
   .extra-hud small { font-weight: 400; font-size: 0.8rem; color: #ccc; }
 
   .music-btn { position: fixed; top: 80px; left: 20px; z-index: 50; background: rgba(0,0,0,0.6); border: 1px solid #00e5ff; color: #00e5ff; padding: 10px; cursor: pointer; font-family: 'Press Start 2P'; font-size: 0.8rem; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
@@ -119,6 +91,25 @@ const shortenAddress = (address) => {
   if (!address) return "WAITING...";
   const str = address.toString();
   return str.slice(0, 4) + ".." + str.slice(-4);
+};
+
+// COMPONENT VIDEO (Giữ nguyên để không reload)
+const BackgroundVideo = ({ src, shakeClass }) => {
+    const videoRef = useRef(null);
+    useEffect(() => {
+        if (videoRef.current) {
+            videoRef.current.load();
+            videoRef.current.play().catch(() => {});
+        }
+    }, [src]);
+    return (
+        <video 
+            ref={videoRef}
+            className={`bg-video ${shakeClass}`} 
+            autoPlay loop muted playsInline
+            src={src}
+        />
+    );
 };
 
 function GameContent() {
@@ -141,7 +132,6 @@ function GameContent() {
     audioRef.current = new Audio(AUDIO_BATTLE_THEME);
     audioRef.current.loop = true;
     audioRef.current.volume = 0.6;
-    // Thử tự động phát (thường sẽ bị chặn nếu chưa click)
     const playPromise = audioRef.current.play();
     if (playPromise !== undefined) playPromise.catch(() => {});
   }, []);
@@ -196,13 +186,6 @@ function GameContent() {
   const isWaiting = gameState && gameState.lastFedTimestamp.toNumber() === 0;
   const isDead = timeLeft === 0 && !isWaiting;
 
-  // LOGIC RUNG MÀN HÌNH
-  const getShakeClass = () => {
-    if (!isHit) return "";
-    if (hpPercent < 50) return "bg-hit-strong";
-    return "bg-hit-light";
-  };
-
   // LOGIC TRẠNG THÁI VIDEO
   const getCurrentVideoState = () => {
       if (isDead) return 'dead'; 
@@ -211,6 +194,12 @@ function GameContent() {
       return 'normal';
   };
   const currentState = getCurrentVideoState();
+
+  const getShakeClass = () => {
+    if (!isHit) return "";
+    if (hpPercent < 50) return "is-shaking";
+    return "is-shaking";
+  };
 
   const feedBeast = async () => {
     if (!publicKey) return;
@@ -280,7 +269,7 @@ function GameContent() {
             <div style={{ flex: 2, minWidth: "200px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px", color: "#ff3300", fontWeight: "bold" }}>
                     <span className="font-tech" style={{fontSize: "0.9rem"}}>BTC ARMOR</span>
-                    <span className="font-tech" style={{fontSize: "1.2rem"}}>{isWaiting ? "60s" : timeLeft + "s"}</span>
+                    <span className="font-tech" style={{fontSize: "1.2rem"}}>{isWaiting ? "45s" : timeLeft + "s"}</span>
                 </div>
                 <div className="chart-hp-frame">
                     <div className="chart-hp-fill" style={{ width: `${hpPercent}%` }}></div>
@@ -314,7 +303,6 @@ function GameContent() {
         </div>
       )}
 
-      {/* BẢNG XẾP HẠNG */}
       <div className="extra-hud">
         <div style={{marginBottom: "5px"}}>
           <div>LAST HITTER</div>
