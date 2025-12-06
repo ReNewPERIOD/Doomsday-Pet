@@ -4,7 +4,7 @@ import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { Program, AnchorProvider, web3 } from "@project-serum/anchor";
 import idl from "./idl.json";
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
-import { ConnectionProvider, WalletProvider, useWallet, useConnection } from "@solana/wallet-adapter-react";
+import { ConnectionProvider, WalletProvider, useWallet, useConnection } from "@solana-wallet-adapter-react";
 import { WalletModalProvider, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
@@ -68,7 +68,6 @@ const styles = `
 
   .combat-btn { width: 100%; padding: 20px; font-size: 1.5rem; font-family: 'Rajdhani', sans-serif; font-weight: 800; border: none; cursor: pointer; color: white; background: linear-gradient(90deg, #00c6ff, #0072ff); clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px); box-shadow: 0 0 20px rgba(0, 198, 255, 0.5); letter-spacing: 2px; transition: all 0.2s; }
   .combat-btn:active { transform: scale(0.95); background: #fff; color: #000; }
-  /* Disabled state */
   .combat-btn:disabled { background: #555; color: #aaa; cursor: not-allowed; box-shadow: none; }
   
   .btn-loot { background: linear-gradient(90deg, #f1c40f, #f39c12); color: black; animation: pulse 1s infinite; }
@@ -120,8 +119,6 @@ function GameContent() {
   const [isHit, setIsHit] = useState(false);
   const [lastHitter, setLastHitter] = useState(null);
   const [topHitters, setTopHitters] = useState([]);
-  
-  // TRẠNG THÁI XỬ LÝ (CHẶN SPAM CLICK)
   const [isProcessing, setIsProcessing] = useState(false);
 
   const audioRef = useRef(null);
@@ -142,7 +139,6 @@ function GameContent() {
       else { audioRef.current.pause(); setIsMuted(true); }
   };
 
-  // --- LOGIC FETCH GAME STATE (CẢI TIẾN) ---
   const fetchGameState = async () => {
     try {
       const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
@@ -157,8 +153,6 @@ function GameContent() {
       if(ttl > 0) setMaxTime(ttl);
 
       const lastFed = account.lastFedTimestamp.toNumber();
-      
-      // LOGIC CHỜ vs CHẠY
       if (lastFed === 0) {
           setTimeLeft(ttl);
       } else {
@@ -170,7 +164,6 @@ function GameContent() {
       setTopHitters([{ address: 'Ff3r...1a2b', hits: 15 }, { address: 'Aa2d...4e5f', hits: 12 }, { address: 'Cc9t...7y8z', hits: 8 }]);
     } catch (err) {
        console.error("Fetch error:", err);
-       // Không alert lỗi fetch để tránh spam popup
     }
   };
 
@@ -204,14 +197,12 @@ function GameContent() {
   };
   const currentState = getCurrentVideoState();
 
-  // --- LOGIC FEED (CẢI TIẾN: IS PROCESSING) ---
   const feedBeast = async () => {
-    if (!publicKey || isProcessing) return; // Chặn nếu đang xử lý
-    setIsProcessing(true); // Khóa nút
+    if (!publicKey || isProcessing) return;
+    setIsProcessing(true);
 
     try {
       if(audioRef.current && audioRef.current.paused && !isMuted) audioRef.current.play();
-      
       setIsHit(true); setTimeout(() => setIsHit(false), 400); 
       
       const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
@@ -222,8 +213,6 @@ function GameContent() {
       }).rpc();
       
       console.log("Feed tx:", tx);
-
-      // Đợi 1.2s rồi fetch lại để đảm bảo blockchain đã cập nhật
       setTimeout(fetchGameState, 1200);
 
     } catch (err) { 
@@ -235,23 +224,20 @@ function GameContent() {
         }
         setTimeout(fetchGameState, 800);
     } finally {
-        setIsProcessing(false); // Mở khóa nút
+        setIsProcessing(false);
     }
   };
 
-  // --- LOGIC CLAIM (CẢI TIẾN: KHÔNG RELOAD, XỬ LÝ GAMEISALIVE) ---
   const claimPrize = async () => {
      if (!publicKey || !gameState || isProcessing) return;
-     
      if (timeLeft > 0) { alert("Wait until timer hits 0s!"); return; }
      
-     setIsProcessing(true); // Khóa nút
+     setIsProcessing(true);
 
      try {
        const provider = new AnchorProvider(connection, window.solana, { preflightCommitment: "processed" });
        const program = new Program(idl, PROGRAM_ID, provider);
        
-       // Chuyển string thành PublicKey chuẩn
        const winnerAddress = new PublicKey(gameState.lastFeeder);
 
        await program.methods.claimReward().accounts({
@@ -259,18 +245,13 @@ function GameContent() {
        }).rpc();
        
        alert(`🏆 MISSION SUCCESS! Bounty Earned! Game Resetting...`);
-       
-       // KHÔNG RELOAD TRANG! Thay vào đó fetch lại state sau 1.2s
-       setTimeout(() => {
-           fetchGameState();
-       }, 1200);
+       setTimeout(fetchGameState, 1200);
 
      } catch (err) { 
          console.error("Claim err:", err);
          const msg = err?.message || String(err);
          
          if (msg.includes("GameIsAlive")) {
-             // Blockchain chưa kịp cập nhật trạng thái chết -> Refetch và báo user
              await fetchGameState();
              alert("⚠️ Syncing... Chain says game is still running. Try again in 2s!");
          } else {
@@ -278,7 +259,7 @@ function GameContent() {
          }
          setTimeout(fetchGameState, 800);
      } finally {
-         setIsProcessing(false); // Mở khóa nút
+         setIsProcessing(false);
      }
   };
 
@@ -288,14 +269,12 @@ function GameContent() {
     <div className="game-wrapper">
       <style>{styles}</style>
 
-      {/* 3 VIDEO STACK (Zero Latency) */}
       <div className={`video-stack ${getShakeClass()}`}>
           <video className={`bg-video-layer ${currentState === 'normal' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_NORMAL} type="video/mp4" /></video>
           <video className={`bg-video-layer ${currentState === 'damaged' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_DAMAGED} type="video/mp4" /></video>
           <video className={`bg-video-layer ${currentState === 'dead' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_DEFEATED} type="video/mp4" /></video>
       </div>
 
-      {/* LAYERS */}
       {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
       {(!isDead && !isWaiting) && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
 
