@@ -10,7 +10,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 // --- CẤU HÌNH ---
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
-const GAME_ADDRESS = new PublicKey("HQoSwQhBYxCgL4tJeaBRtf4XBTGeVJJdPQ8v33s9czRT");
+const GAME_ADDRESS = new PublicKey("CKLoD6Y96itdYXxkM58aGr4Sz3rEMXzmaxGCPtbuNbiU");
 
 // --- URL VIDEO ---
 const VIDEO_NORMAL   = "/v1.mp4"; 
