@@ -1,4 +1,4 @@
-// page.js
+// page.js (Optimized - "mạnh")
 "use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
@@ -10,13 +10,13 @@ import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 /**
- * Config (giữ nguyên PROGRAM_ID / GAME_ADDRESS của bạn)
+ * KEEP ORIGINAL CONFIG
  */
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
 const GAME_ADDRESS = new PublicKey("FB2JH7H2zKfsiXfx6YazryNYR3TziJrVM542pQbb6TTN");
 
 /**
- * Assets
+ * Assets (kept original URLs)
  */
 const VIDEO_NORMAL = "/v1.mp4";
 const VIDEO_DAMAGED = "/v2.mp4";
@@ -26,7 +26,7 @@ const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 
 /**
- * Styles (memoized để tránh tạo lại mỗi render)
+ * Styles (memoized)
  */
 const styles = `
 @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
@@ -70,7 +70,7 @@ const shortenAddress = (address) => {
 };
 
 /**
- * BackgroundVideo component: IMPORTANT - do NOT call load(); only play if paused.
+ * BackgroundVideo: do NOT call load(); only attempt play when needed (avoid reload)
  */
 const BackgroundVideo = ({ src, active }) => {
   const videoRef = useRef(null);
@@ -78,13 +78,11 @@ const BackgroundVideo = ({ src, active }) => {
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
-    // try to play only if paused; avoid calling load()
+    // Try to play only when active and paused
     if (active && v.paused) {
-      v.play().catch(() => {
-        // autoplay may be blocked; that's fine
-      });
+      v.play().catch(() => {});
     }
-  }, [src, active]);
+  }, [active, src]);
 
   return (
     <video
@@ -100,10 +98,11 @@ const BackgroundVideo = ({ src, active }) => {
 };
 
 /**
- * Main Game Component
+ * Main optimized component
  */
 export default function Home() {
-  const { publicKey } = useWallet();
+  // include connect from useWallet to open wallet popup if user is not connected
+  const { publicKey, connect } = useWallet();
   const anchorWallet = useAnchorWallet();
 
   const [gameState, setGameState] = useState(null);
@@ -116,13 +115,12 @@ export default function Home() {
   const [topHitters, setTopHitters] = useState([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const audioRef = useRef(null);
-  const [isMuted, setIsMuted] = useState(true); // start muted to allow autoplay in some browsers
+  const [isMuted, setIsMuted] = useState(true);
 
   const endpoint = clusterApiUrl("devnet");
   const connectionRef = useRef(new Connection(endpoint, "processed"));
   const connection = connectionRef.current;
 
-  // dummy wallet for read-only provider
   const dummyWallet = {
     publicKey: new PublicKey("11111111111111111111111111111111"),
     signTransaction: async (tx) => tx,
@@ -138,7 +136,7 @@ export default function Home() {
     [anchorWallet, connection]
   );
 
-  // Preload important assets (append link tags to head once)
+  // Preload assets (head links)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const preloads = [
@@ -160,7 +158,7 @@ export default function Home() {
     return () => nodes.forEach(n => n.remove());
   }, []);
 
-  // audio setup: create audio but don't force play until user toggles
+  // Audio: create once; start muted (user toggles to play)
   useEffect(() => {
     audioRef.current = new Audio(AUDIO_BATTLE_THEME);
     audioRef.current.loop = true;
@@ -170,9 +168,8 @@ export default function Home() {
     return () => {
       if (audioRef.current) audioRef.current.pause();
     };
-  }, []); // mount once
+  }, []);
 
-  // Toggle sound — user action
   const toggleSound = () => {
     if (!audioRef.current) return;
     if (audioRef.current.paused) {
@@ -185,7 +182,7 @@ export default function Home() {
     }
   };
 
-  // fetchGameState: reads program account and update local UI
+  // Fetch game state from chain
   const fetchGameState = useCallback(async () => {
     try {
       const provider = getProvider(false);
@@ -204,7 +201,6 @@ export default function Home() {
 
       setLastHitter(account.lastFeeder?.toString() || null);
 
-      // NOTE: topHitters not stored on-chain in IDL, keep sample or compute later
       setTopHitters(prev => prev.length ? prev : [
         { address: "Ff3r...1a2b", hits: 15 },
         { address: "Aa2d...4e5f", hits: 12 },
@@ -215,20 +211,18 @@ export default function Home() {
     }
   }, [getProvider, connection]);
 
-  // Set up account subscription (fast updates) + periodic polling fallback
+  // Subscribe to account changes (fast) + polling fallback (light)
   useEffect(() => {
     if (!isClient) return;
     let subId = null;
-    // initial fetch
+
     fetchGameState();
 
-    // subscribe to account changes for immediate update
     try {
       subId = connection.onAccountChange(
         GAME_ADDRESS,
-        (accInfo) => {
-          // On account change, schedule a quick fetch (debounced)
-          // We don't directly parse accInfo here; calling fetchGameState keeps parsing logic in one place.
+        () => {
+          // Debounced/quick update
           fetchGameState();
         },
         "processed"
@@ -237,12 +231,10 @@ export default function Home() {
       console.debug("onAccountChange not available:", e);
     }
 
-    // Polling fallback once every 4s (less frequent to reduce RPC load)
     const poll = setInterval(() => {
       fetchGameState();
     }, 4000);
 
-    // Local UI timer tick for smooth countdown (1s)
     const ticker = setInterval(() => {
       setTimeLeft(prev => Math.max(0, prev - 1));
     }, 1000);
@@ -254,7 +246,6 @@ export default function Home() {
     };
   }, [isClient, connection, fetchGameState]);
 
-  // derived
   const hpPercent = maxTime > 0 ? Math.min(100, (timeLeft / maxTime) * 100) : 100;
   const isWaiting = gameState && gameState.lastFedTimestamp.toNumber() === 0;
   const isDead = timeLeft === 0 && !isWaiting;
@@ -269,9 +260,17 @@ export default function Home() {
   };
   const currentState = getCurrentVideoState();
 
-  // feed action
+  // feed action (requires signer)
   const feedBeast = async () => {
-    if (!anchorWallet || !publicKey) { alert("⚠️ Please connect wallet to SMASH."); return; }
+    if (!anchorWallet || !publicKey) {
+      // try to open wallet popup if connect method exists
+      if (connect) {
+        try { await connect(); } catch (e) { alert("Please connect wallet to SMASH."); return; }
+      } else {
+        alert("Please connect wallet to SMASH.");
+        return;
+      }
+    }
     if (isProcessing) return;
     setIsProcessing(true);
     try {
@@ -287,7 +286,6 @@ export default function Home() {
         .accounts({ gameAccount: GAME_ADDRESS, player: publicKey, systemProgram: web3.SystemProgram.programId })
         .rpc();
 
-      // quick local optimistic update: call fetch after short delay
       setTimeout(() => fetchGameState(), 1200);
     } catch (err) {
       const msg = err?.message || String(err);
@@ -299,12 +297,26 @@ export default function Home() {
     }
   };
 
-  // claim prize
+  // claim action (this is where hunter (non-winner) must be able to connect and claim)
   const claimPrize = async () => {
     if (isProcessing) return;
     if (!gameState) return alert("No game data found.");
     if (timeLeft > 0) { alert("Wait until timer hits 0s!"); return; }
-    if (!anchorWallet || !publicKey) { if (!confirm("Claiming requires wallet. Connect?")) return; return; }
+
+    // Ensure wallet connected: if not, try to open wallet modal via connect()
+    if (!anchorWallet || !publicKey) {
+      if (connect) {
+        try {
+          await connect();
+        } catch (e) {
+          // user closed wallet modal or failed to connect
+          return;
+        }
+      } else {
+        alert("Please connect your wallet to claim!");
+        return;
+      }
+    }
 
     setIsProcessing(true);
     try {
@@ -314,7 +326,6 @@ export default function Home() {
       await program.methods.claimReward().accounts({ gameAccount: GAME_ADDRESS, hunter: publicKey, winner: winnerAddress }).rpc();
 
       alert("🏆 Claim success! Game restarting...");
-      // Immediately refresh state
       await fetchGameState();
     } catch (err) {
       const msg = err?.message || String(err);
@@ -326,10 +337,8 @@ export default function Home() {
     }
   };
 
-  // Memoize style element to avoid recreate
   const styleEl = useMemo(() => <style>{styles}</style>, []);
 
-  // Render
   if (!isClient) return null;
 
   return (
@@ -344,7 +353,7 @@ export default function Home() {
 
       {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
 
-      {/* Always show fist when not dead (fix: remove dependency on isWaiting) */}
+      {/* Always show fist when not dead */}
       {!isDead && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
 
       <div style={{ position: "absolute", top:0, left:0, width:"100%", padding:"20px", display:"flex", justifyContent:"space-between", zIndex:30, alignItems:"center" }}>
@@ -368,8 +377,7 @@ export default function Home() {
           <button onClick={claimPrize} className="combat-btn btn-loot" disabled={isProcessing || timeLeft>0}>CLAIM</button>
         </div>
 
-        {/* EXTRA HUD moved to TOP-LEFT (left:20px, top:20px via CSS .extra-hud) */}
-        <div className="extra-hud">
+        <div className="extra-hud" style={{ left: 20, right: "auto", top: 20 }}>
           <div>Pot: {potBalance.toFixed(2)} SOL</div>
           <div>Last: {shortenAddress(lastHitter)}</div>
           <div style={{ marginTop:"5px" }}>Top Hitters:</div>
