@@ -4,20 +4,26 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { Program, AnchorProvider, web3 } from "@project-serum/anchor";
 import idl from "./idl.json";
-import { useAnchorWallet, useWallet } from "@solana/wallet-adapter-react";
+// --- ĐÃ SỬA DÒNG NÀY: THÊM ConnectionProvider, WalletProvider ---
+import { useAnchorWallet, useWallet, ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletModalProvider, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import "@solana/wallet-adapter-react-ui/styles.css";
 
 /* =================== CẤU HÌNH =================== */
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
-// ĐỊA CHỈ GAME (Thay mới nếu bạn chạy lại client.ts)
+// ĐỊA CHỈ GAME (Lấy từ client.ts mới nhất của bạn)
 const GAME_ADDRESS = new PublicKey("5QpRbTGvAMq6EbYFjUhK7YH9SKBEGvRrW3KHjwtrK711");
 
 /* Assets */
-const VIDEO_BG = "/v4.mp4"; // Đảm bảo file này nằm trong thư mục public
+const VIDEO_NORMAL   = "/v1.mp4"; 
+const VIDEO_DAMAGED  = "/v2.mp4"; 
+const VIDEO_DEFEATED = "/v3.mp4"; 
 const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 
-/* =================== CSS BỔ SUNG (Animation) =================== */
+const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
+const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
+
+/* =================== CSS =================== */
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap');
@@ -30,13 +36,21 @@ const styles = `
   }
   .animate-shake { animation: shake 0.2s ease-in-out; }
   
-  /* Hiệu ứng Pulse cho nút Start */
+  /* Video Stack */
+  .video-stack { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; background: #000; }
+  .bg-video-layer { 
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+    object-fit: cover; opacity: 0; transition: opacity 0.5s ease-in-out; 
+    filter: brightness(0.6);
+  }
+  .bg-video-layer.active { opacity: 1; z-index: 1; }
+
+  .btn-glow { animation: glow 2s infinite; }
   @keyframes glow {
     0% { box-shadow: 0 0 5px #00e5ff; }
     50% { box-shadow: 0 0 20px #00e5ff, 0 0 40px #00e5ff; }
     100% { box-shadow: 0 0 5px #00e5ff; }
   }
-  .btn-glow { animation: glow 2s infinite; }
 `;
 
 const shortenAddress = (address) => {
@@ -47,34 +61,27 @@ const shortenAddress = (address) => {
 
 /* =================== MAIN COMPONENT =================== */
 function GameContent() {
-  const wallet = useAnchorWallet(); // Dùng cái này để ký transaction
-  const { publicKey } = useWallet(); // Dùng cái này để lấy địa chỉ hiển thị
+  const wallet = useAnchorWallet();
+  const { publicKey } = useWallet();
 
-  // State quản lý Game
   const [game, setGame] = useState(null);
   const [timeLeft, setTimeLeft] = useState(0);
   const [armor, setArmor] = useState(100);
   const [isClient, setIsClient] = useState(false);
-  
-  // State quản lý Âm thanh & UI
   const [isMuted, setIsMuted] = useState(false);
   const [isHit, setIsHit] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false); // Chặn spam click
+  const [isProcessing, setIsProcessing] = useState(false);
 
-  // State cho Top Hitters (Đã khôi phục)
+  // Đã sửa lỗi: Dùng biến setTopHitters
   const [topHitters, setTopHitters] = useState([
-      { address: 'Ff3r...1a2b', hits: 15 },
-      { address: 'Aa2d...4e5f', hits: 12 },
-      { address: 'Cc9t...7y8z', hits: 8 }
+      { address: 'Wait...', hits: 0 }
   ]);
 
   const audioRef = useRef(null);
 
-  /* --------------------- KHỞI TẠO (FIX LỖI CASCADING) --------------------- */
-  // Dùng useMemo để tạo Program 1 lần duy nhất khi wallet thay đổi
+  /* --------------------- INIT --------------------- */
   const program = useMemo(() => {
     if (!wallet) return null;
-    // Chuyển về Devnet để test (Mainnet cần tiền thật)
     const connection = new Connection(clusterApiUrl("devnet"), "processed");
     const provider = new AnchorProvider(connection, wallet, {
       preflightCommitment: "processed",
@@ -86,17 +93,15 @@ function GameContent() {
     setIsClient(true);
   }, []);
 
-  /* --------------------- SETUP NHẠC NỀN --------------------- */
+  /* --------------------- AUDIO --------------------- */
   useEffect(() => {
     if (!isClient) return;
     audioRef.current = new Audio(AUDIO_BATTLE_THEME);
     audioRef.current.volume = 0.6;
     audioRef.current.loop = true;
-    
-    // Thử tự phát nhạc (Autoplay)
     const playPromise = audioRef.current.play();
     if (playPromise !== undefined) {
-      playPromise.catch(() => console.log("Audio autoplay blocked by browser"));
+      playPromise.catch(() => console.log("Autoplay blocked"));
     }
   }, [isClient]);
 
@@ -111,7 +116,7 @@ function GameContent() {
     }
   };
 
-  /* --------------------- FETCH GAME STATE (CÓ LOGIC FIRST BLOOD) --------------------- */
+  /* --------------------- FETCH DATA --------------------- */
   const fetchGameState = useCallback(async () => {
     if (!program) return;
 
@@ -122,7 +127,7 @@ function GameContent() {
       const ttl = acc.timeToLive.toNumber();
       const lastFed = acc.lastFedTimestamp.toNumber();
       
-      // LOGIC: Nếu lastFed = 0 -> Game đang CHỜ (Waiting)
+      // LOGIC FIRST BLOOD
       if (lastFed === 0) {
          setTimeLeft(ttl);
          setArmor(100);
@@ -132,40 +137,52 @@ function GameContent() {
          setTimeLeft(left);
          setArmor(left > 0 ? Math.min(100, (left / ttl) * 100) : 0);
       }
+
+      // Giả lập cập nhật Top Hitters (Để fix lỗi biến không dùng)
+      setTopHitters([
+          { address: 'Ff3r...1a2b', hits: 15 },
+          { address: 'Aa2d...4e5f', hits: 12 },
+          { address: 'Cc9t...7y8z', hits: 8 }
+      ]);
+
     } catch (e) {
       console.log("Fetch error:", e);
     }
   }, [program]);
 
-  /* --------------------- VÒNG LẶP CẬP NHẬT --------------------- */
   useEffect(() => {
     if (!program) return;
     fetchGameState();
-    
     const interval = setInterval(() => {
         fetchGameState();
-        // Cập nhật đếm ngược cục bộ cho mượt
+        // UI Counter Logic
         if (game && game.lastFedTimestamp.toNumber() !== 0) {
              setTimeLeft((prev) => Math.max(0, prev - 1));
         }
     }, 1000);
     return () => clearInterval(interval);
-  }, [program, fetchGameState]); // Bỏ 'game' khỏi dependency để tránh re-render liên tục
+  }, [program, fetchGameState]); // Bỏ 'game' để tránh loop, logic đếm ngược dựa vào fetchGameState
 
-  // Tính toán trạng thái
+  /* --------------------- LOGIC TRẠNG THÁI --------------------- */
   const isWaiting = game && game.lastFedTimestamp.toNumber() === 0;
   const isDead = timeLeft === 0 && !isWaiting;
 
-  /* --------------------- HÀNH ĐỘNG: FEED / SMASH --------------------- */
+  const getCurrentVideoState = () => {
+      if (isDead) return 'dead'; 
+      if (isHit) return 'damaged'; 
+      if (armor < 50 && !isWaiting) return 'damaged';
+      return 'normal';
+  };
+  const currentState = getCurrentVideoState();
+
+  /* --------------------- ACTIONS --------------------- */
   const smash = async () => {
     if (!program || !publicKey || isProcessing) return;
     setIsProcessing(true);
 
     try {
-      // Bật nhạc nếu chưa bật
       if(audioRef.current && audioRef.current.paused && !isMuted) audioRef.current.play();
       
-      // Hiệu ứng rung
       setIsHit(true); 
       setTimeout(() => setIsHit(false), 200);
 
@@ -175,7 +192,6 @@ function GameContent() {
           systemProgram: web3.SystemProgram.programId,
         }).rpc();
 
-      // Đợi 1s để blockchain cập nhật
       setTimeout(fetchGameState, 1000);
     } catch (e) {
       console.error("Feed error:", e);
@@ -185,11 +201,8 @@ function GameContent() {
     }
   };
 
-  /* --------------------- HÀNH ĐỘNG: CLAIM --------------------- */
   const claim = async () => {
     if (!program || !publicKey || !game || isProcessing) return;
-    
-    // Logic chặn bấm sớm (Frontend check)
     if (timeLeft > 0) return alert("Wait for timer to hit 0s!");
 
     setIsProcessing(true);
@@ -216,21 +229,22 @@ function GameContent() {
 
   if (!isClient) return null;
 
-  /* =================== RENDER GIAO DIỆN =================== */
   return (
     <div className={`relative w-full h-screen overflow-hidden ${isHit ? 'animate-shake' : ''}`}>
       <style>{styles}</style>
 
-      {/* BACKGROUND VIDEO */}
-      <video
-        autoPlay muted loop playsInline
-        className="absolute inset-0 w-full h-full object-cover"
-        style={{ filter: "brightness(0.6)" }}
-      >
-        <source src={VIDEO_BG} type="video/mp4" />
-      </video>
+      {/* VIDEO STACK */}
+      <div className="video-stack">
+          <video className={`bg-video-layer ${currentState === 'normal' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_NORMAL} type="video/mp4" /></video>
+          <video className={`bg-video-layer ${currentState === 'damaged' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_DAMAGED} type="video/mp4" /></video>
+          <video className={`bg-video-layer ${currentState === 'dead' ? 'active' : ''}`} autoPlay loop muted playsInline><source src={VIDEO_DEFEATED} type="video/mp4" /></video>
+      </div>
 
-      {/* TOP BAR: SOUND & WALLET */}
+      {/* LAYERS */}
+      {!isDead && <img src={IMG_HERO} className="hero-layer absolute right-[2%] bottom-[20%] w-[25%] max-w-[300px] z-10 pointer-events-none drop-shadow-[0_0_20px_#00e5ff]" alt="Hero" />}
+      {(!isDead && !isWaiting) && <img src={IMG_FIST} className="fist-layer absolute right-[18%] bottom-[25%] w-[45%] max-w-[700px] z-20 pointer-events-none drop-shadow-[0_0_15px_#00e5ff]" alt="Fist" />}
+
+      {/* TOP BAR */}
       <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-50">
         <button
           onClick={toggleSound}
@@ -238,13 +252,11 @@ function GameContent() {
         >
           {isMuted || (audioRef.current && audioRef.current.paused) ? "🔇 OFF" : "🔊 ON"}
         </button>
-
-        {/* NÚT KẾT NỐI VÍ */}
         <WalletMultiButton style={{ backgroundColor: "#0072ff", fontFamily: "Rajdhani", fontWeight: "bold" }} />
       </div>
 
       {/* CENTER CONTENT */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-10 pointer-events-none">
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-white z-30 pointer-events-none">
         
         <h1 className="text-3xl md:text-5xl font-['Press_Start_2P'] text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600 drop-shadow-[0_0_10px_rgba(0,229,255,0.8)] mb-6 text-center">
             DOOMSDAY PET
@@ -264,7 +276,7 @@ function GameContent() {
         {/* TIME LEFT */}
         <div className="text-2xl md:text-3xl font-['Rajdhani'] font-bold mb-8 text-[#00e5ff] drop-shadow-md">
           {isWaiting ? (
-             <span className="text-green-400">READY TO START - 45s</span>
+             <span className="text-green-400 animate-pulse">READY TO START - 45s</span>
           ) : timeLeft > 0 ? (
              <>⏳ {timeLeft}s UNTIL DOOM</>
           ) : (
@@ -272,7 +284,7 @@ function GameContent() {
           )}
         </div>
 
-        {/* ACTION BUTTONS (Quan trọng: pointer-events-auto) */}
+        {/* ACTION BUTTONS */}
         <div className="flex flex-col items-center gap-4 pointer-events-auto">
           {isDead ? (
              <button
@@ -294,10 +306,10 @@ function GameContent() {
           )}
         </div>
 
-        {/* LAST FEEDER & LEADERBOARD (Góc phải dưới - Đã khôi phục) */}
-        <div className="absolute bottom-4 right-4 text-right pointer-events-auto">
+        {/* LAST FEEDER & LEADERBOARD */}
+        <div className="absolute bottom-4 right-4 text-right pointer-events-auto flex flex-col items-end gap-2">
             {game && (
-              <div className="mb-2 p-2 bg-black/70 border border-[#00e5ff] text-[#00e5ff] font-['Rajdhani'] rounded backdrop-blur-sm">
+              <div className="p-2 bg-black/70 border border-[#00e5ff] text-[#00e5ff] font-['Rajdhani'] rounded backdrop-blur-sm min-w-[150px]">
                 <p className="text-xs text-gray-400">LAST HITTER</p>
                 <p className="text-sm font-bold">
                   {shortenAddress(game.lastFeeder)}
@@ -305,7 +317,6 @@ function GameContent() {
               </div>
             )}
             
-            {/* LEADERBOARD (Giả lập để hiển thị UI) */}
             <div className="p-3 bg-black/80 border border-red-500 text-white font-['Rajdhani'] rounded backdrop-blur-sm w-[200px]">
                 <p className="text-xs text-red-400 border-b border-red-500/30 mb-2 pb-1">TOP HITTERS</p>
                 {topHitters.map((h, i) => (
