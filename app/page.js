@@ -4,15 +4,16 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { Program, AnchorProvider, web3 } from "@project-serum/anchor";
 import idl from "./idl.json";
-// --- ĐÃ SỬA DÒNG NÀY: THÊM ConnectionProvider, WalletProvider ---
+
+// --- IMPORT ĐẦY ĐỦ CÁC THÀNH PHẦN VÍ ---
+import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets"; 
 import { useAnchorWallet, useWallet, ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletModalProvider, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import "@solana/wallet-adapter-react-ui/styles.css";
-import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets";
 
 /* =================== CẤU HÌNH =================== */
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
-// ĐỊA CHỈ GAME (Lấy từ client.ts mới nhất của bạn)
+// ĐỊA CHỈ GAME (Lấy từ client.ts mới nhất)
 const GAME_ADDRESS = new PublicKey("5QpRbTGvAMq6EbYFjUhK7YH9SKBEGvRrW3KHjwtrK711");
 
 /* Assets */
@@ -73,7 +74,6 @@ function GameContent() {
   const [isHit, setIsHit] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Đã sửa lỗi: Dùng biến setTopHitters
   const [topHitters, setTopHitters] = useState([
       { address: 'Wait...', hits: 0 }
   ]);
@@ -139,7 +139,6 @@ function GameContent() {
          setArmor(left > 0 ? Math.min(100, (left / ttl) * 100) : 0);
       }
 
-      // Giả lập cập nhật Top Hitters (Để fix lỗi biến không dùng)
       setTopHitters([
           { address: 'Ff3r...1a2b', hits: 15 },
           { address: 'Aa2d...4e5f', hits: 12 },
@@ -162,7 +161,7 @@ function GameContent() {
         }
     }, 1000);
     return () => clearInterval(interval);
-  }, [program, fetchGameState]); // Bỏ 'game' để tránh loop, logic đếm ngược dựa vào fetchGameState
+  }, [program, fetchGameState]);
 
   /* --------------------- LOGIC TRẠNG THÁI --------------------- */
   const isWaiting = game && game.lastFedTimestamp.toNumber() === 0;
@@ -337,24 +336,6 @@ function GameContent() {
 // Wrapper Provider
 export default function Home() {
   const endpoint = clusterApiUrl("devnet");
-  const wallets = [new PhantomWalletAdapter()];
-
-  return (
-    <ConnectionProvider endpoint={endpoint}>
-      <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          <GameContent />
-        </WalletModalProvider>
-      </WalletProvider>
-    </ConnectionProvider>
-  );
-  // ... (Các đoạn code khác)
-
-// Wrapper Provider
-export default function Home() {
-  const endpoint = clusterApiUrl("devnet");
-  
-  // Dòng này sẽ lỗi nếu chưa import PhantomWalletAdapter ở trên
   const wallets = [new PhantomWalletAdapter()];
 
   return (
