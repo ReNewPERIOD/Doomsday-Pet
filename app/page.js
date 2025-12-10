@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { Program, AnchorProvider, web3 } from "@project-serum/anchor";
 import idl from "./idl.json";
+import confetti from "canvas-confetti"; // <--- THƯ VIỆN HIỆU ỨNG VÀNG
 
 // --- IMPORT VÍ ---
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets"; 
@@ -13,7 +14,8 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 /* =================== CẤU HÌNH =================== */
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
-const GAME_ADDRESS = new PublicKey("5QpRbTGvAMq6EbYFjUhK7YH9SKBEGvRrW3KHjwtrK711");
+// ĐỊA CHỈ GAME (Giữ nguyên cái cũ của bạn hoặc thay mới nếu deploy lại)
+const GAME_ADDRESS = new PublicKey("5P7T5JeoitwjUAgwqPSFvRht3vaLjtGqjv36XNJYt1RR");
 
 /* Assets */
 const VIDEO_BG = "/v4.mp4"; 
@@ -49,27 +51,15 @@ const styles = `
     100% { transform: translateX(0) scale(1); }
   }
 
-  /* VIDEO OPTIMIZED */
   .bg-video { 
     position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-    object-fit: cover; 
-    z-index: 0;
-    filter: brightness(0.85); 
-    background: #000;
+    object-fit: cover; z-index: 0;
+    filter: brightness(0.85); background: #000;
   }
 
-  /* Layers */
-  .hero-layer { 
-    position: absolute; right: 5%; bottom: 15%; width: 25%; max-width: 250px; 
-    z-index: 10; pointer-events: none; filter: drop-shadow(0 0 20px #00e5ff); 
-  }
-  .fist-layer { 
-    position: absolute; right: 20%; bottom: 20%; width: 40%; max-width: 600px; 
-    z-index: 20; pointer-events: none; filter: drop-shadow(0 0 15px #00e5ff);
-    animation: punch-loop 0.8s infinite ease-in-out !important; 
-  }
+  .hero-layer { position: absolute; right: 5%; bottom: 15%; width: 25%; max-width: 250px; z-index: 10; pointer-events: none; filter: drop-shadow(0 0 20px #00e5ff); }
+  .fist-layer { position: absolute; right: 20%; bottom: 20%; width: 40%; max-width: 600px; z-index: 20; pointer-events: none; filter: drop-shadow(0 0 15px #00e5ff); animation: punch-loop 0.8s infinite ease-in-out !important; }
 
-  /* Responsive Mobile */
   @media (max-width: 768px) {
     .hero-layer { width: 35%; bottom: 12%; right: -5%; }
     .fist-layer { width: 60%; bottom: 18%; right: 10%; }
@@ -102,44 +92,62 @@ function GameContent() {
   const [isMuted, setIsMuted] = useState(false);
   const [isHit, setIsHit] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // State hiển thị thông báo trạng thái
+  const [statusMsg, setStatusMsg] = useState("");
 
-  const [topHitters, setTopHitters] = useState([
-      { address: 'Wait...', hits: 0 }
-  ]);
-
+  const [topHitters, setTopHitters] = useState([{ address: 'Wait...', hits: 0 }]);
   const audioRef = useRef(null);
 
   const program = useMemo(() => {
     if (!wallet) return null;
     const connection = new Connection(clusterApiUrl("devnet"), "processed");
-    const provider = new AnchorProvider(connection, wallet, {
-      preflightCommitment: "processed",
-    });
+    const provider = new AnchorProvider(connection, wallet, { preflightCommitment: "processed" });
     return new Program(idl, PROGRAM_ID, provider);
   }, [wallet]);
 
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
+  useEffect(() => { setIsClient(true); }, []);
 
   useEffect(() => {
     if (!isClient) return;
     audioRef.current = new Audio(AUDIO_BATTLE_THEME);
     audioRef.current.volume = 0.6;
     audioRef.current.loop = true;
-    // Cố gắng autoplay (có thể bị chặn)
     audioRef.current.play().catch(() => {}); 
   }, [isClient]);
 
   const toggleSound = () => {
     if (!audioRef.current) return;
-    if (audioRef.current.paused) {
-      audioRef.current.play();
-      setIsMuted(false);
-    } else {
-      audioRef.current.pause();
-      setIsMuted(true);
-    }
+    if (audioRef.current.paused) { audioRef.current.play(); setIsMuted(false); } 
+    else { audioRef.current.pause(); setIsMuted(true); }
+  };
+
+  /* --- HIỆU ỨNG VÀNG BAY TUNG TÓE --- */
+  const triggerGoldExplosion = () => {
+    const duration = 3000;
+    const end = Date.now() + duration;
+
+    (function frame() {
+      // Pháo giấy màu vàng kim
+      confetti({
+        particleCount: 5,
+        angle: 60,
+        spread: 55,
+        origin: { x: 0 },
+        colors: ['#FFD700', '#FFA500', '#FFFFFF']
+      });
+      confetti({
+        particleCount: 5,
+        angle: 120,
+        spread: 55,
+        origin: { x: 1 },
+        colors: ['#FFD700', '#FFA500', '#FFFFFF']
+      });
+
+      if (Date.now() < end) {
+        requestAnimationFrame(frame);
+      }
+    }());
   };
 
   const fetchGameState = useCallback(async () => {
@@ -153,20 +161,14 @@ function GameContent() {
       const lastFed = acc.lastFedTimestamp.toNumber();
       
       if (lastFed === 0) {
-         setTimeLeft(ttl);
-         setArmor(100);
+         setTimeLeft(ttl); setArmor(100);
       } else {
          const now = Math.floor(Date.now() / 1000);
          const left = Math.max(0, (lastFed + ttl) - now);
          setTimeLeft(left);
          setArmor(left > 0 ? Math.min(100, (left / ttl) * 100) : 0);
       }
-
-      setTopHitters([
-          { address: 'Ff3r...1a2b', hits: 15 },
-          { address: 'Aa2d...4e5f', hits: 12 },
-          { address: 'Cc9t...7y8z', hits: 8 }
-      ]);
+      setTopHitters([{ address: 'Ff3r...1a2b', hits: 15 }, { address: 'Aa2d...4e5f', hits: 12 }, { address: 'Cc9t...7y8z', hits: 8 }]);
     } catch (e) { console.log("Fetch error:", e); }
   }, [program]);
 
@@ -185,55 +187,80 @@ function GameContent() {
   const isWaiting = game && game.lastFedTimestamp.toNumber() === 0;
   const isDead = timeLeft === 0 && !isWaiting;
 
-  // --- LOGIC ĐẤM (ĐÃ SỬA: TỰ ĐỘNG BẬT NHẠC) ---
+  // --- SMASH ACTION ---
   const smash = async () => {
     if (!program || !publicKey || isProcessing) return;
     setIsProcessing(true);
-
+    setStatusMsg("ATTACKING...");
+    
     try {
-      // 🔥 TỰ ĐỘNG BẬT NHẠC KHI NHẤN START / SMASH 🔥
-      if (audioRef.current) {
-          if (audioRef.current.paused) {
-              audioRef.current.play().catch(e => console.log("Audio error:", e));
-          }
-          setIsMuted(false); // Cập nhật icon loa thành Sound On
-      }
-
-      setIsHit(true); 
-      setTimeout(() => setIsHit(false), 200);
-
+      if(audioRef.current && audioRef.current.paused && !isMuted) audioRef.current.play();
+      setIsHit(true); setTimeout(() => setIsHit(false), 200);
+      
       await program.methods.feed().accounts({
-          gameAccount: GAME_ADDRESS,
-          player: publicKey,
-          systemProgram: web3.SystemProgram.programId,
+          gameAccount: GAME_ADDRESS, player: publicKey, systemProgram: web3.SystemProgram.programId,
       }).rpc();
-
+      
+      setStatusMsg("HIT CONFIRMED!");
+      setTimeout(() => setStatusMsg(""), 2000);
       setTimeout(fetchGameState, 1000);
     } catch (e) {
-      console.error("Feed error:", e);
-      alert("Action Failed: " + e.message);
-    } finally {
-      setIsProcessing(false);
-    }
+      console.error(e);
+      alert("Failed: " + e.message);
+      setStatusMsg("");
+    } finally { setIsProcessing(false); }
   };
 
+  // --- CLAIM ACTION (LOGIC THÔNG BÁO MỚI) ---
   const claim = async () => {
     if (!program || !publicKey || !game || isProcessing) return;
-    if (timeLeft > 0) return alert("Wait for 0s!");
+    if (timeLeft > 0) return alert(`Wait! Game ends in ${timeLeft}s`);
+
     setIsProcessing(true);
+    setStatusMsg("CLAIMING...");
+
     try {
       await program.methods.claimReward().accounts({
-          gameAccount: GAME_ADDRESS,
-          hunter: publicKey,
-          winner: game.lastFeeder,
+          gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
       }).rpc();
-      alert("🏆 CLAIMED! Resetting...");
+      
+      // KÍCH HOẠT HIỆU ỨNG VÀNG BAY
+      triggerGoldExplosion();
+
+      // KIỂM TRA XEM AI VỪA CLAIM ĐỂ HIỆN THÔNG BÁO PHÙ HỢP
+      const isWinner = publicKey.toString() === game.lastFeeder.toString();
+
+      if (isWinner) {
+          alert(`🏆 CHAMPION! BẠN ĐÃ ĂN TRỌN 97% GIẢI THƯỞNG!\n(3% đưa vào Pool phát triển Game)`);
+      } else {
+          alert(`⚡ BÀN TAY VÀNG! BẠN CỰC NHANH TAY CUOP ĐƯỢC 2%!\n(Người thắng nhận 95%, 3% vào Pool)`);
+      }
+      
+      setStatusMsg("GAME RESETTING...");
       setTimeout(fetchGameState, 2000);
+      
     } catch (e) {
-      console.error("Claim error:", e);
-      if (e.message && e.message.includes("GameIsAlive")) alert("⚠️ Syncing... Wait 3s!");
-      else alert("Error: " + e.message);
-    } finally { setIsProcessing(false); }
+      console.error("Claim Error:", e);
+      if (e.message && e.message.includes("GameIsAlive")) {
+          setStatusMsg("Syncing... Retrying...");
+          setTimeout(async () => {
+             try {
+                await program.methods.claimReward().accounts({
+                    gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
+                }).rpc();
+                triggerGoldExplosion();
+                alert("🏆 SUCCESS! Bounty Claimed (Retry)!");
+                setTimeout(fetchGameState, 2000);
+             } catch (retryErr) { alert("⚠️ Still Syncing. Click again!"); } 
+             finally { setIsProcessing(false); setStatusMsg(""); }
+          }, 2500);
+          return;
+      } 
+      alert("Error: " + e.message);
+      setIsProcessing(false);
+      setStatusMsg("");
+    }
+    if (!isProcessing) setIsProcessing(false);
   };
 
   if (!isClient) return null;
@@ -241,22 +268,12 @@ function GameContent() {
   return (
     <div className={`relative w-full h-screen overflow-hidden ${isHit ? 'animate-shake' : ''}`}>
       <style>{styles}</style>
+      <video className="bg-video" poster={VIDEO_POSTER} autoPlay loop muted playsInline preload="auto"><source src={VIDEO_BG} type="video/mp4" /></video>
 
-      {/* VIDEO */}
-      <video 
-        className="bg-video" 
-        poster={VIDEO_POSTER} 
-        autoPlay loop muted playsInline 
-        preload="auto"
-      >
-          <source src={VIDEO_BG} type="video/mp4" />
-      </video>
-
-      {/* LAYERS */}
       {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
       {(!isDead && !isWaiting) && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
 
-      {/* --- TOP BAR --- */}
+      {/* TOP BAR */}
       <div className="absolute top-2 left-2 right-2 flex justify-between items-start z-50 pointer-events-auto">
         <button onClick={toggleSound} className="w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 bg-black/60 text-[#00e5ff] rounded-full md:rounded-lg border border-[#00e5ff] font-['Rajdhani'] font-bold flex items-center justify-center">
           {isMuted || (audioRef.current && audioRef.current.paused) ? "🔇" : "🔊"}
@@ -264,19 +281,17 @@ function GameContent() {
 
         <div className="flex flex-col items-end gap-1 md:gap-2">
             <WalletMultiButton style={{ backgroundColor: "#0072ff", fontFamily: "Rajdhani", fontWeight: "bold", fontSize: "12px", height: "32px", padding: "0 12px" }} />
-
+            
             <div className="w-[140px] md:w-[200px] p-1.5 md:p-2 bg-black/70 border border-[#00e5ff] text-[#00e5ff] font-['Rajdhani'] rounded backdrop-blur-md flex justify-between items-center text-[10px] md:text-sm">
                 <span className="text-gray-400">POOL</span>
                 <span className="font-bold text-yellow-400">{game?.balance ? (game.balance / 1000000000).toFixed(3) : "0.0"} SOL</span>
             </div>
-
             {game && (
               <div className="w-[140px] md:w-[200px] p-1.5 md:p-2 bg-black/70 border border-[#00e5ff] text-[#00e5ff] font-['Rajdhani'] rounded backdrop-blur-md flex justify-between items-center text-[10px] md:text-sm">
                 <span className="text-gray-400">HIT</span>
                 <span className="font-bold truncate max-w-[80px]">{shortenAddress(game.lastFeeder)}</span>
               </div>
             )}
-
             <div className="w-[140px] md:w-[200px] p-2 bg-black/80 border border-red-500 text-white font-['Rajdhani'] rounded backdrop-blur-md text-[10px] md:text-xs">
                 <p className="text-red-400 border-b border-red-500/30 mb-1 pb-1">TOP HITTERS</p>
                 {topHitters.map((h, i) => (
@@ -289,8 +304,11 @@ function GameContent() {
         </div>
       </div>
 
-      {/* --- FOOTER --- */}
+      {/* FOOTER */}
       <div className="absolute bottom-[5%] left-0 right-0 flex flex-col items-center justify-end z-30 pointer-events-none pb-2">
+        {/* Status Msg */}
+        {statusMsg && <div className="mb-2 text-yellow-400 font-bold font-['Rajdhani'] animate-pulse bg-black/80 border border-yellow-400 px-4 py-1 rounded-full text-sm shadow-[0_0_10px_gold]">{statusMsg}</div>}
+
         <div className="w-[85%] max-w-[500px] h-[25px] md:h-[35px] bg-black/60 border-2 border-red-600 overflow-hidden mb-2 relative skew-x-[-10deg]">
           <div className="h-full bg-gradient-to-r from-red-600 to-orange-500 transition-all duration-300" style={{ width: `${armor}%` }}></div>
           <div className="absolute inset-0 flex items-center justify-center text-[10px] md:text-sm font-bold font-['Rajdhani'] tracking-widest text-white drop-shadow-md">
@@ -305,7 +323,7 @@ function GameContent() {
         <div className="pointer-events-auto">
           {isDead ? (
              <button onClick={claim} disabled={isProcessing} className="px-8 py-3 md:px-10 md:py-5 bg-gradient-to-r from-yellow-500 to-orange-600 text-black font-['Press_Start_2P'] text-xs md:text-sm hover:scale-105 transition-transform border-2 md:border-4 border-white rounded-xl disabled:opacity-50">
-                {isProcessing ? "..." : "🏆 CLAIM"}
+                {isProcessing ? "PROCESSING..." : "🏆 CLAIM BOUNTY"}
               </button>
           ) : (
              <button onClick={smash} disabled={isProcessing} className={`group relative px-10 py-4 md:px-12 md:py-5 text-white font-['Rajdhani'] font-black text-2xl md:text-3xl uppercase tracking-wider clip-path-polygon hover:scale-105 transition-transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${isWaiting ? 'bg-green-600 btn-glow' : 'bg-gradient-to-r from-blue-600 to-blue-800'}`} style={{ clipPath: "polygon(10% 0, 100% 0, 100% 80%, 90% 100%, 0 100%, 0 20%)" }}>
@@ -326,9 +344,7 @@ export default function Home() {
   return (
     <ConnectionProvider endpoint={endpoint}>
       <WalletProvider wallets={wallets} autoConnect>
-        <WalletModalProvider>
-          <GameContent />
-        </WalletModalProvider>
+        <WalletModalProvider><GameContent /></WalletModalProvider>
       </WalletProvider>
     </ConnectionProvider>
   );
