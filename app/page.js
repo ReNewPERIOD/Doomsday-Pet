@@ -24,7 +24,7 @@ const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 
-/* =================== CSS (FINE-TUNED VISUALS) =================== */
+/* =================== CSS =================== */
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap');
@@ -159,43 +159,56 @@ function GameContent() {
     else { audioRef.current.pause(); setIsMuted(true); }
   };
 
-  /* --- HIỆU ỨNG VÀNG CỰC ĐẠI (MEGA GOLD - Z-INDEX FIXED) --- */
+  /* --- 🔥 HIỆU ỨNG VÀNG CASINO (PRO LEVEL) 🔥 --- */
   const triggerGoldExplosion = () => {
-    const duration = 5000;
+    // Thời gian nổ: 4 giây
+    const duration = 4000;
     const end = Date.now() + duration;
+    
+    // Bảng màu sang trọng: Vàng đậm, Vàng sáng, Bạc lấp lánh
+    const colors = ['#FFD700', '#FFA500', '#FDB931', '#FFFFFF'];
 
     (function frame() {
-      // Cấu hình chuẩn để luôn đè lên mọi thứ
-      const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };
-
+      // Bắn từ trái sang
       confetti({
-        ...defaults,
-        particleCount: 15,
+        particleCount: 4,
         angle: 60,
-        spread: 100,
-        origin: { x: 0, y: 0.6 },
-        colors: ['#FFD700', '#DAA520'], 
-        scalar: 4.0, // Vàng to
-        shapes: ['square'], 
-        gravity: 0.8,
+        spread: 55,
+        origin: { x: 0 },
+        colors: colors,
+        shapes: ['circle', 'square', 'star'], // Thêm hình ngôi sao
+        scalar: 2, // Kích thước lớn
+        zIndex: 9999
       });
       
+      // Bắn từ phải sang
       confetti({
-        ...defaults,
-        particleCount: 15,
+        particleCount: 4,
         angle: 120,
-        spread: 100,
-        origin: { x: 1, y: 0.6 },
-        colors: ['#FFD700', '#DAA520'],
-        scalar: 4.0,
-        shapes: ['square'],
-        gravity: 0.8,
+        spread: 55,
+        origin: { x: 1 },
+        colors: colors,
+        shapes: ['circle', 'square', 'star'],
+        scalar: 2,
+        zIndex: 9999
       });
 
       if (Date.now() < end) {
         requestAnimationFrame(frame);
       }
     }());
+
+    // Nổ thêm 1 cú lớn ở giữa sau 500ms để tạo điểm nhấn
+    setTimeout(() => {
+        confetti({
+            particleCount: 150,
+            spread: 100,
+            origin: { y: 0.6 },
+            colors: colors,
+            startVelocity: 45,
+            zIndex: 9999
+        });
+    }, 500);
   };
 
   const fetchGameState = useCallback(async () => {
@@ -256,7 +269,7 @@ function GameContent() {
     } finally { setIsProcessing(false); }
   };
 
-  // --- CLAIM (DELAY ALERT FIX) ---
+  // --- CLAIM (DELAY ALERT + PRO GOLD) ---
   const claim = async () => {
     if (!program || !publicKey || !game || isProcessing) return;
     if (timeLeft > 0) return alert(`Wait! Game ends in ${timeLeft}s`);
@@ -269,10 +282,10 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
       }).rpc();
       
-      // 1. Kích hoạt hiệu ứng ngay lập tức
+      // Kích hoạt hiệu ứng vàng xịn
       triggerGoldExplosion();
 
-      // 2. Delay Alert 500ms để hiệu ứng kịp hiện ra trước khi bị Alert chặn
+      // Delay Alert 800ms (tăng lên xíu) để người dùng kịp tận hưởng pháo hoa
       setTimeout(() => {
           const isWinner = publicKey.toString() === game.lastFeeder.toString();
           if (isWinner) {
@@ -280,7 +293,7 @@ function GameContent() {
           } else {
               alert(`⚡ BÀN TAY VÀNG! BẠN ĐÃ CƯỚP ĐƯỢC 2% GIẢI THƯỞNG!`);
           }
-      }, 500); // <--- MAGIC NUMBER: Chờ 0.5s mới hiện bảng thông báo
+      }, 800); 
       
       setStatusMsg("GAME RESETTING...");
       setTimeout(fetchGameState, 2000);
@@ -299,7 +312,7 @@ function GameContent() {
                 
                 setTimeout(() => {
                     alert("🏆 SUCCESS! Bounty Claimed!");
-                }, 500);
+                }, 800);
 
                 setTimeout(fetchGameState, 2000);
              } catch (retryErr) { alert("⚠️ Syncing. Click again!"); } 
