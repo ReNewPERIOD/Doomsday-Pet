@@ -14,6 +14,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 /* =================== CẤU HÌNH =================== */
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
+// Đảm bảo địa chỉ này là địa chỉ Game mới nhất bạn tạo
 const GAME_ADDRESS = new PublicKey("AeMy2SpyKG2fyEESiEsWRtj6JsRUrXQrC4MwjZj2AnR4");
 
 /* Assets */
@@ -66,10 +67,10 @@ const styles = `
     text-shadow: 0 0 5px #000; animation: marquee 30s linear infinite; padding-left: 100%; 
   }
 
-  /* VIDEO CONTAINER: Fix lỗi đen màn hình bằng cách set ảnh nền cứng cho thẻ cha */
+  /* VIDEO CONTAINER: Fix lỗi đen màn hình mobile */
   .video-container {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    background-image: url('${VIDEO_POSTER}'); /* <--- DÒNG NÀY CỨU MÀN HÌNH ĐEN */
+    background-image: url('${VIDEO_POSTER}'); 
     background-size: cover; background-position: center;
     z-index: 0;
   }
@@ -89,10 +90,10 @@ const styles = `
     transform-origin: bottom right; animation: punch-mid 1.2s infinite ease-in-out !important; 
   }
 
-  /* WINNER MODAL (THAY THẾ ALERT) */
+  /* WINNER MODAL */
   .winner-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.8); z-index: 9999;
+    background: rgba(0,0,0,0.85); z-index: 9999; /* Tăng độ tối nền */
     display: flex; justify-content: center; align-items: center;
     animation: fadeIn 0.5s;
   }
@@ -104,7 +105,7 @@ const styles = `
     max-width: 90%;
     animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
   }
-  @keyframes popIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+  @keyframes popIn { 0% { transform: scale(0.5); opacity:0; } 100% { transform: scale(1); opacity:1;} }
   @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
 
   @media (max-width: 768px) {
@@ -138,7 +139,7 @@ function GameContent() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   
-  // State mới cho Modal Winner (Thay alert)
+  // State cho Modal Winner
   const [winnerModal, setWinnerModal] = useState({ show: false, title: "", msg: "" });
 
   const [topHitters, setTopHitters] = useState([{ address: 'Wait...', hits: 0 }]);
@@ -164,7 +165,7 @@ function GameContent() {
     // Force Play Video cho Mobile
     if (videoRef.current) {
         videoRef.current.muted = true;
-        videoRef.current.setAttribute('playsinline', 'true'); // Ép buộc inline trên iOS
+        videoRef.current.setAttribute('playsinline', 'true');
         videoRef.current.play().catch(e => console.log("Video autoplay blocked:", e));
     }
   }, [isClient]);
@@ -181,12 +182,12 @@ function GameContent() {
     const colors = ['#FFD700', '#FFA500', '#FDB931', '#FFFFFF'];
 
     (function frame() {
-      confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0 }, colors: colors, shapes: ['circle', 'square', 'star'], scalar: 2, zIndex: 9999 });
-      confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1 }, colors: colors, shapes: ['circle', 'square', 'star'], scalar: 2, zIndex: 9999 });
+      confetti({ particleCount: 4, angle: 60, spread: 55, origin: { x: 0 }, colors: colors, shapes: ['circle', 'square', 'star'], scalar: 2, zIndex: 9998 }); // Giảm zIndex xuống 1 chút
+      confetti({ particleCount: 4, angle: 120, spread: 55, origin: { x: 1 }, colors: colors, shapes: ['circle', 'square', 'star'], scalar: 2, zIndex: 9998 });
       if (Date.now() < end) requestAnimationFrame(frame);
     }());
     setTimeout(() => {
-        confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 }, colors: colors, startVelocity: 45, zIndex: 9999 });
+        confetti({ particleCount: 150, spread: 100, origin: { y: 0.6 }, colors: colors, startVelocity: 45, zIndex: 9998 });
     }, 500);
   };
 
@@ -248,6 +249,7 @@ function GameContent() {
     } finally { setIsProcessing(false); }
   };
 
+  // --- CLAIM (MOBILE SAFE VERSION) ---
   const claim = async () => {
     if (!program || !publicKey || !game || isProcessing) return;
     if (timeLeft > 0) return alert(`Wait! Game ends in ${timeLeft}s`);
@@ -260,18 +262,22 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
       }).rpc();
       
+      // 1. Nổ vàng trước
       triggerGoldExplosion();
 
-      // THAY ALERT BẰNG SET MODAL ĐỂ KHÔNG BỊ TRẮNG MÀN HÌNH
-      const isWinner = publicKey.toString() === game.lastFeeder.toString();
-      setWinnerModal({
-          show: true,
-          title: isWinner ? "🏆 CHAMPION! 🏆" : "⚡ FAST HAND! ⚡",
-          msg: isWinner ? "BẠN ĐÃ CHIẾN THẮNG VÀ NHẬN 97% GIẢI THƯỞNG!" : "BẠN ĐÃ CƯỚP ĐƯỢC 2% GIẢI THƯỞNG!"
-      });
+      // 2. CHỜ 2 GIÂY (2000ms) cho mobile thở, rồi mới hiện Modal tiếng Anh
+      setTimeout(() => {
+          const isWinner = publicKey.toString() === game.lastFeeder.toString();
+          setWinnerModal({
+              show: true,
+              // ENGLISH TEXT HERE
+              title: isWinner ? "🏆 CHAMPION! 🏆" : "⚡ FAST HANDS! ⚡",
+              msg: isWinner ? "YOU WON THE BATTLE & RECEIVED 97% OF THE PRIZE POOL!" : "SNIPED! YOU SNATCHED 2% OF THE PRIZE POOL!"
+          });
+      }, 2000); // <--- SAFE DELAY CHO MOBILE
       
       setStatusMsg("GAME RESETTING...");
-      setTimeout(fetchGameState, 2000);
+      setTimeout(fetchGameState, 3000);
       
     } catch (e) {
       console.error("Claim Error:", e);
@@ -283,9 +289,12 @@ function GameContent() {
                     gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
                 }).rpc();
                 triggerGoldExplosion();
-                setWinnerModal({ show: true, title: "🏆 SUCCESS!", msg: "Bounty Claimed!" }); // Retry thành công cũng hiện modal
-                setTimeout(fetchGameState, 2000);
-             } catch (retryErr) { alert("⚠️ Syncing. Click again!"); } 
+                // Retry thành công cũng chờ 2s rồi hiện tiếng Anh
+                setTimeout(() => {
+                    setWinnerModal({ show: true, title: "🏆 SUCCESS!", msg: "BOUNTY CLAIMED VERIFIED!" });
+                }, 2000);
+                setTimeout(fetchGameState, 3000);
+             } catch (retryErr) { alert("⚠️ Block delay. Please click Claim again!"); } 
              finally { setIsProcessing(false); setStatusMsg(""); }
           }, 2500);
           return;
@@ -385,19 +394,21 @@ function GameContent() {
         {!isDead && <p className="text-gray-400 text-[10px] mt-2 font-['Rajdhani']">Fee: 0.005 SOL</p>}
       </div>
 
-      {/* --- MODAL CHIẾN THẮNG ĐẸP MẮT (Thay thế Alert) --- */}
+      {/* --- MODAL CHIẾN THẮNG (ENGLISH) --- */}
       {winnerModal.show && (
         <div className="winner-overlay" onClick={() => setWinnerModal({ ...winnerModal, show: false })}>
             <div className="winner-box">
-                <div className="text-4xl mb-4 animate-bounce">{winnerModal.title}</div>
-                <div className="text-[#00e5ff] font-['Rajdhani'] font-bold text-xl mb-6">
+                <div className="text-3xl md:text-4xl mb-4 animate-bounce font-['Press_Start_2P'] text-yellow-400 leading-tight">
+                    {winnerModal.title}
+                </div>
+                <div className="text-[#00e5ff] font-['Rajdhani'] font-bold text-lg md:text-xl mb-6">
                     {winnerModal.msg}
                 </div>
                 <button 
                     onClick={() => setWinnerModal({ ...winnerModal, show: false })}
-                    className="px-6 py-2 bg-gradient-to-r from-yellow-500 to-orange-600 text-black font-bold rounded-lg hover:scale-105"
+                    className="px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-600 text-black font-bold rounded-lg hover:scale-105 font-['Press_Start_2P'] text-xs"
                 >
-                    TIẾP TỤC CHƠI
+                    CONTINUE
                 </button>
             </div>
         </div>
