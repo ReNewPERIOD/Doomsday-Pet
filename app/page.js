@@ -5,10 +5,6 @@ import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { Program, AnchorProvider, web3 } from "@project-serum/anchor";
 import idl from "./idl.json";
 
-// QUAN TRỌNG: ĐÃ XÓA IMPORT CONFETTI ĐỂ KHÔNG BỊ CRASH
-// import confetti from "canvas-confetti"; <--- ĐÃ BỎ DÒNG NÀY
-
-// IMPORT VÍ
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets"; 
 import { useAnchorWallet, useWallet, ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletModalProvider, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
@@ -38,52 +34,34 @@ const styles = `
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* VIDEO NỀN ĐƠN GIẢN NHẤT */
-  .bg-wrapper {
+  /* BACKGROUND HACK */
+  .bg-container {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     z-index: -1; background-color: #000;
   }
   
-  .bg-image {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; z-index: 0;
-  }
-
-  .bg-video { 
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; z-index: 1; 
+  /* Video thuần túy */
+  .raw-video {
+    width: 100%; height: 100%; object-fit: cover;
     filter: brightness(0.9);
   }
 
-  /* UI */
-  .game-ui { 
-    position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
-    z-index: 10; pointer-events: none; 
+  /* Ảnh nền dự phòng (nằm dưới) */
+  .backup-img {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; z-index: -2;
   }
 
-  @keyframes shake {
-    0% { transform: translate(0, 0); }
-    25% { transform: translate(-5px, 5px); }
-    75% { transform: translate(5px, -5px); }
-    100% { transform: translate(0, 0); }
-  }
+  /* UI & ANIMATIONS */
+  .game-ui { position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none; z-index: 10; }
+
+  @keyframes shake { 0% { transform: translate(0, 0); } 25% { transform: translate(-5px, 5px); } 75% { transform: translate(5px, -5px); } 100% { transform: translate(0, 0); } }
   .shake-active { animation: shake 0.2s ease-in-out; }
   
-  @keyframes punch-mid {
-    0% { transform: translate(0, 0) scale(1); }
-    50% { transform: translate(-30vw, -20vh) scale(1.3); }
-    100% { transform: translate(0, 0) scale(1); }
-  }
+  @keyframes punch-mid { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-30vw, -20vh) scale(1.3); } 100% { transform: translate(0, 0) scale(1); } }
 
-  .hero-layer { 
-    position: absolute; right: 5%; bottom: 15%; width: 25%; max-width: 250px; 
-    z-index: 10; filter: drop-shadow(0 0 20px #00e5ff); 
-  }
-  .fist-layer { 
-    position: absolute; right: 8%; bottom: 18%; width: 25%; max-width: 350px; 
-    z-index: 20; filter: drop-shadow(0 0 10px #00e5ff);
-    transform-origin: bottom right; animation: punch-mid 1.2s infinite ease-in-out !important; 
-  }
+  .hero-layer { position: absolute; right: 5%; bottom: 15%; width: 25%; max-width: 250px; z-index: 10; filter: drop-shadow(0 0 20px #00e5ff); }
+  .fist-layer { position: absolute; right: 8%; bottom: 18%; width: 25%; max-width: 350px; z-index: 20; filter: drop-shadow(0 0 10px #00e5ff); transform-origin: bottom right; animation: punch-mid 1.2s infinite ease-in-out !important; }
 
   /* MODAL */
   .winner-overlay {
@@ -112,7 +90,6 @@ const styles = `
   @media (max-width: 768px) {
     .hero-layer { width: 35%; bottom: 12%; right: -5%; }
     .fist-layer { width: 45%; bottom: 15%; right: 0%; } 
-    .bg-video, .bg-image { object-position: center center; } 
     .marquee-text { font-size: 9px; animation-duration: 25s; } 
   }
 `;
@@ -136,46 +113,30 @@ function GameContent() {
   const [isHit, setIsHit] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
-  
   const [winnerModal, setWinnerModal] = useState({ show: false, title: "", msg: "" });
   const [topHitters, setTopHitters] = useState([{ address: 'Wait...', hits: 0 }]);
   
   const audioRef = useRef(null);
-  const videoRef = useRef(null);
 
   const program = useMemo(() => {
     if (!wallet) return null;
     const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
-    const provider = new AnchorProvider(connection, wallet, { 
-        preflightCommitment: "confirmed", commitment: "confirmed"
-    });
+    const provider = new AnchorProvider(connection, wallet, { preflightCommitment: "confirmed", commitment: "confirmed" });
     return new Program(idl, PROGRAM_ID, provider);
   }, [wallet]);
 
   useEffect(() => { setIsClient(true); }, []);
 
-  // --- AUDIO & VIDEO INIT ---
+  // --- AUDIO INIT ---
   useEffect(() => {
     if (!isClient) return;
-    
     audioRef.current = new Audio(AUDIO_BATTLE_THEME);
     audioRef.current.volume = 0.6;
     audioRef.current.loop = true;
 
-    // Video: Force Play
-    if (videoRef.current) {
-        videoRef.current.muted = true;
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.play().catch(e => console.log("Video autoplay:", e));
-    }
-
-    // Touch Unlock
     const unlock = () => {
         if (audioRef.current && audioRef.current.paused) {
             audioRef.current.play().then(() => setIsMuted(false)).catch(() => {});
-        }
-        if (videoRef.current && videoRef.current.paused) {
-            videoRef.current.play().catch(() => {});
         }
     };
     window.addEventListener('click', unlock);
@@ -188,8 +149,6 @@ function GameContent() {
     if (audioRef.current.paused) { audioRef.current.play(); setIsMuted(false); } 
     else { audioRef.current.pause(); setIsMuted(true); }
   };
-
-  // --- ĐÃ XÓA HOÀN TOÀN HÀM triggerGoldExplosion() --- 
 
   const fetchGameState = useCallback(async () => {
     if (!program) return;
@@ -239,8 +198,7 @@ function GameContent() {
       }).rpc();
       
       if(audioRef.current) audioRef.current.play().catch(()=>{});
-      if(videoRef.current) videoRef.current.play().catch(()=>{}); // Đảm bảo video chạy
-
+      
       setIsHit(true); setTimeout(() => setIsHit(false), 300);
       setStatusMsg("HIT CONFIRMED!");
       setTimeout(() => setStatusMsg(""), 2000);
@@ -264,7 +222,6 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
       }).rpc();
       
-      // KHÔNG CÓ TRIGGER GOLD EXPLOSION NỮA
       // CHỈ HIỆN MODAL
       setTimeout(() => {
           const isWinner = publicKey.toString() === game.lastFeeder.toString();
@@ -306,18 +263,30 @@ function GameContent() {
     <div className="relative w-full h-screen overflow-hidden">
       <style>{styles}</style>
       
-      {/* BACKGROUND ĐƠN GIẢN */}
-      <div className="bg-wrapper">
-          <img src={VIDEO_POSTER} className="bg-image" alt="background" />
-          <video 
-            ref={videoRef} 
-            className="bg-video" 
-            poster={VIDEO_POSTER}
-            autoPlay loop muted playsInline 
-            preload="auto"
-          >
-              <source src={VIDEO_BG} type="video/mp4" />
-          </video>
+      {/* 🔥🔥🔥 THE MAGIC FIX: RAW HTML INJECTION 🔥🔥🔥
+         Dùng dangerouslySetInnerHTML để ép trình duyệt render thẻ video thuần túy.
+         React sẽ không thể can thiệp, re-render hay block autoplay được nữa.
+      */}
+      <div className="bg-container">
+          <img src={VIDEO_POSTER} className="backup-img" alt="bg" />
+          <div 
+            style={{ width: '100%', height: '100%' }}
+            dangerouslySetInnerHTML={{
+              __html: `
+                <video 
+                  class="raw-video" 
+                  poster="${VIDEO_POSTER}" 
+                  autoplay 
+                  loop 
+                  muted 
+                  playsinline 
+                  webkit-playsinline
+                >
+                  <source src="${VIDEO_BG}" type="video/mp4" />
+                </video>
+              `
+            }}
+          />
       </div>
 
       <div className={`game-ui ${isHit ? 'shake-active' : ''}`}>
