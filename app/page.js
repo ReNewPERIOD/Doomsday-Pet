@@ -4,7 +4,9 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { Program, AnchorProvider, web3 } from "@project-serum/anchor";
 import idl from "./idl.json";
-import confetti from "canvas-confetti"; 
+
+// QUAN TRỌNG: ĐÃ XÓA IMPORT CONFETTI ĐỂ KHÔNG BỊ CRASH
+// import confetti from "canvas-confetti"; <--- ĐÃ BỎ DÒNG NÀY
 
 // IMPORT VÍ
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets"; 
@@ -16,7 +18,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
 const GAME_ADDRESS = new PublicKey("AeMy2SpyKG2fyEESiEsWRtj6JsRUrXQrC4MwjZj2AnR4");
 
-/* Assets (DÙNG FILE TRONG MÁY BẠN) */
+/* Assets */
 const VIDEO_BG = "/v4.mp4"; 
 const VIDEO_POSTER = "/poster.jpg"; 
 const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
@@ -24,7 +26,7 @@ const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 
-/* =================== CSS (SIMPLE & CLEAN) =================== */
+/* =================== CSS =================== */
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap');
@@ -36,15 +38,24 @@ const styles = `
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* --- VIDEO NỀN (CẤU TRÚC GỐC - CHẮC CHẮN CHẠY) --- */
+  /* VIDEO NỀN ĐƠN GIẢN NHẤT */
+  .bg-wrapper {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: -1; background-color: #000;
+  }
+  
+  .bg-image {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; z-index: 0;
+  }
+
   .bg-video { 
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
-    object-fit: cover; 
-    z-index: 0; /* Nằm dưới cùng */
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    object-fit: cover; z-index: 1; 
     filter: brightness(0.9);
   }
 
-  /* --- CÁC LỚP UI (Đè lên video) --- */
+  /* UI */
   .game-ui { 
     position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
     z-index: 10; pointer-events: none; 
@@ -74,6 +85,18 @@ const styles = `
     transform-origin: bottom right; animation: punch-mid 1.2s infinite ease-in-out !important; 
   }
 
+  /* MODAL */
+  .winner-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.9); z-index: 99999; 
+    display: flex; justify-content: center; align-items: center; pointer-events: auto;
+  }
+  .winner-box {
+    background: #111; border: 2px solid #FFD700; border-radius: 15px;
+    padding: 20px; text-align: center; width: 85%;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+  }
+
   /* MARQUEE */
   @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
   .marquee-container {
@@ -86,22 +109,10 @@ const styles = `
     text-shadow: 0 0 5px #000; animation: marquee 30s linear infinite; padding-left: 100%; 
   }
 
-  /* WINNER MODAL */
-  .winner-overlay {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.9); z-index: 99999; 
-    display: flex; justify-content: center; align-items: center; pointer-events: auto;
-  }
-  .winner-box {
-    background: #111; border: 2px solid #FFD700; border-radius: 15px;
-    padding: 20px; text-align: center; width: 85%;
-    box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
-  }
-
   @media (max-width: 768px) {
     .hero-layer { width: 35%; bottom: 12%; right: -5%; }
     .fist-layer { width: 45%; bottom: 15%; right: 0%; } 
-    .bg-video { object-position: center center; } 
+    .bg-video, .bg-image { object-position: center center; } 
     .marquee-text { font-size: 9px; animation-duration: 25s; } 
   }
 `;
@@ -147,21 +158,24 @@ function GameContent() {
   useEffect(() => {
     if (!isClient) return;
     
-    // Audio
     audioRef.current = new Audio(AUDIO_BATTLE_THEME);
     audioRef.current.volume = 0.6;
     audioRef.current.loop = true;
 
-    // Video: Force Play (Logic đơn giản nhất)
+    // Video: Force Play
     if (videoRef.current) {
-        videoRef.current.muted = true; // Bắt buộc
-        videoRef.current.play().catch(e => console.log("Autoplay prevented:", e));
+        videoRef.current.muted = true;
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.play().catch(e => console.log("Video autoplay:", e));
     }
 
-    // Sự kiện chạm để bật tiếng
+    // Touch Unlock
     const unlock = () => {
         if (audioRef.current && audioRef.current.paused) {
             audioRef.current.play().then(() => setIsMuted(false)).catch(() => {});
+        }
+        if (videoRef.current && videoRef.current.paused) {
+            videoRef.current.play().catch(() => {});
         }
     };
     window.addEventListener('click', unlock);
@@ -175,18 +189,7 @@ function GameContent() {
     else { audioRef.current.pause(); setIsMuted(true); }
   };
 
-  /* --- HIỆU ỨNG VÀNG: BẮN 1 LẦN (NO LOOP, NO CRASH) --- */
-  const triggerGoldExplosion = () => {
-    try {
-        const count = 100;
-        const defaults = { origin: { y: 0.6 }, zIndex: 99999 };
-        function fire(particleRatio, opts) {
-          confetti({ ...defaults, ...opts, particleCount: Math.floor(count * particleRatio) });
-        }
-        fire(0.25, { spread: 26, startVelocity: 55, colors: ['#FFD700', '#FFF'] });
-        fire(0.2, { spread: 60, colors: ['#FFD700', '#FFF'] });
-    } catch (e) {}
-  };
+  // --- ĐÃ XÓA HOÀN TOÀN HÀM triggerGoldExplosion() --- 
 
   const fetchGameState = useCallback(async () => {
     if (!program) return;
@@ -235,10 +238,8 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, player: publicKey, systemProgram: web3.SystemProgram.programId,
       }).rpc();
       
-      if(audioRef.current && !isMuted) audioRef.current.play().catch(()=>{});
-      
-      // Video cố gắng play lại nếu bị dừng
-      if (videoRef.current) videoRef.current.play().catch(()=>{});
+      if(audioRef.current) audioRef.current.play().catch(()=>{});
+      if(videoRef.current) videoRef.current.play().catch(()=>{}); // Đảm bảo video chạy
 
       setIsHit(true); setTimeout(() => setIsHit(false), 300);
       setStatusMsg("HIT CONFIRMED!");
@@ -263,8 +264,8 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
       }).rpc();
       
-      triggerGoldExplosion();
-
+      // KHÔNG CÓ TRIGGER GOLD EXPLOSION NỮA
+      // CHỈ HIỆN MODAL
       setTimeout(() => {
           const isWinner = publicKey.toString() === game.lastFeeder.toString();
           setWinnerModal({
@@ -272,7 +273,7 @@ function GameContent() {
               title: isWinner ? "🏆 CHAMPION! 🏆" : "⚡ FAST HANDS! ⚡",
               msg: isWinner ? "CONGRATULATIONS! YOU HAVE WON THE BATTLE!" : "NICE SNIPE! YOU GRABBED THE BOUNTY!"
           });
-      }, 1000);
+      }, 500);
       
       setStatusMsg("RESETTING...");
       setTimeout(fetchGameState, 3000);
@@ -285,10 +286,7 @@ function GameContent() {
                 await program.methods.claimReward().accounts({
                     gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
                 }).rpc();
-                triggerGoldExplosion();
-                setTimeout(() => {
-                    setWinnerModal({ show: true, title: "🏆 SUCCESS!", msg: "BOUNTY CLAIMED VERIFIED!" });
-                }, 1000);
+                setWinnerModal({ show: true, title: "🏆 SUCCESS!", msg: "BOUNTY CLAIMED VERIFIED!" });
                 setTimeout(fetchGameState, 3000);
              } catch (retryErr) { alert("⚠️ Please click Claim again!"); } 
              finally { setIsProcessing(false); setStatusMsg(""); }
@@ -308,18 +306,20 @@ function GameContent() {
     <div className="relative w-full h-screen overflow-hidden">
       <style>{styles}</style>
       
-      {/* VIDEO GỐC: KHÔNG CÓ LOGIC ẨN HIỆN PHỨC TẠP */}
-      <video 
-        ref={videoRef} 
-        className="bg-video" 
-        poster={VIDEO_POSTER} 
-        autoPlay loop muted playsInline 
-        preload="auto"
-      >
-          <source src={VIDEO_BG} type="video/mp4" />
-      </video>
+      {/* BACKGROUND ĐƠN GIẢN */}
+      <div className="bg-wrapper">
+          <img src={VIDEO_POSTER} className="bg-image" alt="background" />
+          <video 
+            ref={videoRef} 
+            className="bg-video" 
+            poster={VIDEO_POSTER}
+            autoPlay loop muted playsInline 
+            preload="auto"
+          >
+              <source src={VIDEO_BG} type="video/mp4" />
+          </video>
+      </div>
 
-      {/* GAME UI */}
       <div className={`game-ui ${isHit ? 'shake-active' : ''}`}>
           {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
           {(!isDead && !isWaiting) && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
