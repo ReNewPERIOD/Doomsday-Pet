@@ -35,32 +35,33 @@ const styles = `
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* --- HỆ THỐNG NỀN --- */
+  /* --- CẤU TRÚC NỀN --- */
   .bg-container {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    z-index: 0; background-color: #000;
+    z-index: 0; 
+    /* Bỏ background-color đen để tránh bị ám tối lúc đầu */
   }
 
-  /* 1. Ảnh Poster: Luôn hiện, làm nền chuẩn */
+  /* 1. Ảnh Poster */
   .bg-poster {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; z-index: 0;
+    object-fit: cover; z-index: 0; 
   }
 
-  /* 2. Video: Mặc định ẨN (opacity 0) để tránh bóng ma/đen */
+  /* 2. Video: Mặc định ẩn (opacity 0) để tránh đen màn hình */
   .bg-video { 
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; z-index: 1; 
     opacity: 0; 
-    transition: opacity 0.5s ease-in;
+    transition: opacity 0.5s ease-in; /* Hiện từ từ */
   }
   
-  /* Chỉ hiện khi video ĐANG CHẠY */
+  /* Khi video chạy thật sự mới hiện lên */
   .bg-video.playing {
     opacity: 1;
   }
 
-  /* UI LAYER */
+  /* GAME UI */
   .game-ui { 
     position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
     z-index: 10; pointer-events: none; 
@@ -74,7 +75,7 @@ const styles = `
   .hero-layer { position: absolute; right: 5%; bottom: 15%; width: 25%; max-width: 250px; z-index: 10; filter: drop-shadow(0 0 20px #00e5ff); }
   .fist-layer { position: absolute; right: 8%; bottom: 18%; width: 25%; max-width: 350px; z-index: 20; filter: drop-shadow(0 0 10px #00e5ff); transform-origin: bottom right; animation: punch-mid 1.2s infinite ease-in-out !important; }
 
-  /* WINNER MODAL */
+  /* MODAL */
   .winner-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.9); z-index: 99999; 
@@ -121,16 +122,18 @@ function GameContent() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [armor, setArmor] = useState(100);
   const [isClient, setIsClient] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  
+  // Audio state: Mặc định False (Đang Mở) để nó cố gắng chạy ngay lập tức
+  const [isMuted, setIsMuted] = useState(false); 
+  const [isVideoPlaying, setIsVideoPlaying] = useState(false); // State video
+
   const [isHit, setIsHit] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
-  const [isVideoPlaying, setIsVideoPlaying] = useState(false); // State kiểm soát video
   
   const [winnerModal, setWinnerModal] = useState({ show: false, title: "", msg: "" });
   const [topHitters, setTopHitters] = useState([{ address: 'Wait...', hits: 0 }]);
   
-  // Dùng audioRef để điều khiển thẻ <audio>
   const audioRef = useRef(null);
   const videoRef = useRef(null);
 
@@ -143,40 +146,51 @@ function GameContent() {
 
   useEffect(() => { setIsClient(true); }, []);
 
-  // --- UNLOCK AUDIO & VIDEO ON TOUCH ---
+  // --- GLOBAL TOUCH UNLOCK (KÍCH HOẠT ÂM THANH NGAY LẬP TỨC) ---
   useEffect(() => {
     if (!isClient) return;
 
+    // Hàm mở khóa âm thanh & video khi chạm bất kỳ đâu
     const unlockMedia = () => {
-        // Unlock Audio
-        if (audioRef.current && audioRef.current.paused) {
-            audioRef.current.play()
-                .then(() => setIsMuted(false))
-                .catch(e => console.log("Audio waiting..."));
+        // 1. Audio
+        if (audioRef.current) {
+            // Nếu đang pause thì play
+            if (audioRef.current.paused) {
+                audioRef.current.play().catch(e => console.log("Audio waiting..."));
+            }
         }
-        // Unlock Video (Nếu nó chưa chạy)
+        // 2. Video
         if (videoRef.current && videoRef.current.paused) {
             videoRef.current.play().catch(e => console.log("Video waiting..."));
         }
     };
 
+    // Gắn sự kiện vào toàn bộ cửa sổ
     window.addEventListener('click', unlockMedia);
     window.addEventListener('touchstart', unlockMedia);
+    
+    // Cleanup
     return () => { 
         window.removeEventListener('click', unlockMedia); 
         window.removeEventListener('touchstart', unlockMedia); 
     };
   }, [isClient]);
 
-  // Handle Video State
-  const onVideoPlay = () => {
-      setIsVideoPlaying(true); // Video chạy -> Hiện lên (Opacity 1)
-  };
-
+  // --- NÚT LOA (LOGIC CHUẨN) ---
   const toggleSound = () => {
     if (!audioRef.current) return;
-    if (audioRef.current.paused) { audioRef.current.play(); setIsMuted(false); } 
-    else { audioRef.current.pause(); setIsMuted(true); }
+
+    // Nếu đang tắt -> Bật
+    if (audioRef.current.muted || audioRef.current.paused) {
+        audioRef.current.muted = false;
+        audioRef.current.play().catch(()=>{});
+        setIsMuted(false);
+    } 
+    // Nếu đang bật -> Tắt
+    else {
+        audioRef.current.muted = true;
+        setIsMuted(true);
+    }
   };
 
   const fetchGameState = useCallback(async () => {
@@ -226,9 +240,12 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, player: publicKey, systemProgram: web3.SystemProgram.programId,
       }).rpc();
       
-      // Play Audio/Video force
-      if(audioRef.current) audioRef.current.play().catch(()=>{});
-      if(videoRef.current) videoRef.current.play().catch(()=>{});
+      // Smash thành công -> Đảm bảo âm thanh chạy
+      if(audioRef.current) {
+          audioRef.current.muted = false;
+          audioRef.current.play().catch(()=>{});
+          setIsMuted(false);
+      }
 
       setIsHit(true); setTimeout(() => setIsHit(false), 300);
       setStatusMsg("HIT CONFIRMED!");
@@ -290,30 +307,38 @@ function GameContent() {
   if (!isClient) return null;
 
   return (
-    // THẺ CHA CÓ RUNG KHI ĐẤM (isHit)
     <div className={`relative w-full h-screen overflow-hidden ${isHit ? 'shake-active' : ''}`}>
       <style>{styles}</style>
       
-      {/* BACKGROUND CONTAINER */}
+      {/* THẺ AUDIO NẰM Ở ĐÂY 
+          preload="auto": Bắt buộc trình duyệt tải ngay lập tức 
+      */}
+      <audio 
+        ref={audioRef} 
+        src={AUDIO_BATTLE_THEME} 
+        loop 
+        preload="auto" 
+      />
+
       <div className="bg-container">
-          {/* Lớp 1: Ảnh Poster */}
-          <img src={VIDEO_POSTER} className="bg-poster" alt="poster" />
-          
-          {/* Lớp 2: Video (Tàng hình cho đến khi chạy) */}
-          {/* QUAN TRỌNG: Không dùng thuộc tính poster="" ở đây nữa để tránh lỗi ghosting */}
+          <img 
+            src={VIDEO_POSTER} 
+            className="bg-poster" 
+            alt="poster" 
+            // Khi video chạy -> Ẩn ảnh nền đi để tránh rung (Ghosting)
+            style={{ opacity: isVideoPlaying ? 0 : 1 }}
+          />
           <video 
             ref={videoRef} 
             className={`bg-video ${isVideoPlaying ? 'playing' : ''}`} 
+            poster={VIDEO_POSTER} 
             autoPlay loop muted playsInline 
             preload="auto"
-            onPlay={onVideoPlay} // Video chạy mới hiện lên
+            onPlay={() => setIsVideoPlaying(true)}
           >
               <source src={VIDEO_BG} type="video/mp4" />
           </video>
       </div>
-
-      {/* AUDIO TAG ẨN (Để quản lý âm thanh tốt hơn trên mobile) */}
-      <audio ref={audioRef} src={AUDIO_BATTLE_THEME} loop />
 
       <div className="game-ui">
           {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
