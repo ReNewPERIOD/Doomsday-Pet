@@ -23,7 +23,7 @@ const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 
-/* =================== CSS =================== */
+/* =================== CSS (Z-INDEX FIX + NO GHOSTING) =================== */
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap');
@@ -35,25 +35,32 @@ const styles = `
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* NỀN BẤT TỬ */
+  /* --- HỆ THỐNG NỀN --- */
   .bg-container {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     z-index: 0; background-color: #000;
   }
+
+  /* 1. ẢNH POSTER (Z=0) */
   .bg-poster {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; z-index: 0; 
     transition: opacity 0.5s ease-out;
   }
+  /* Khi video chạy thì ẩn ảnh đi để tránh bị rung hình */
   .bg-poster.hidden { opacity: 0; }
 
+  /* 2. VIDEO (Z=1) - NẰM TRÊN ẢNH */
   .bg-video { 
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; z-index: 1;
   }
 
-  /* UI */
-  .game-ui { position: absolute; width: 100%; height: 100%; top: 0; left: 0; z-index: 10; pointer-events: none; }
+  /* UI LAYER (Z=10) */
+  .game-ui { 
+    position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
+    z-index: 10; pointer-events: none; 
+  }
 
   @keyframes shake { 0% { transform: translate(0, 0); } 25% { transform: translate(-5px, 5px); } 75% { transform: translate(5px, -5px); } 100% { transform: translate(0, 0); } }
   .shake-active { animation: shake 0.2s ease-in-out; }
@@ -63,7 +70,7 @@ const styles = `
   .hero-layer { position: absolute; right: 5%; bottom: 15%; width: 25%; max-width: 250px; z-index: 10; filter: drop-shadow(0 0 20px #00e5ff); }
   .fist-layer { position: absolute; right: 8%; bottom: 18%; width: 25%; max-width: 350px; z-index: 20; filter: drop-shadow(0 0 10px #00e5ff); transform-origin: bottom right; animation: punch-mid 1.2s infinite ease-in-out !important; }
 
-  /* MODAL */
+  /* WINNER MODAL */
   .winner-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.9); z-index: 99999; 
@@ -111,11 +118,10 @@ function GameContent() {
   const [armor, setArmor] = useState(100);
   const [isClient, setIsClient] = useState(false);
   
-  // Audio
-  const [isMuted, setIsMuted] = useState(true);
-  const [audioBlobUrl, setAudioBlobUrl] = useState(null); // URL nội bộ sau khi tải xong
+  // Audio state
+  const [isMuted, setIsMuted] = useState(true); 
   
-  // Video
+  // Video state (để ẩn ảnh poster)
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
 
   const [isHit, setIsHit] = useState(false);
@@ -137,58 +143,38 @@ function GameContent() {
 
   useEffect(() => { setIsClient(true); }, []);
 
-  // --- AUDIO PRELOADER (FIX CHẬM 10S) ---
+  // --- AUDIO UNLOCK (PATCH TỪ EXPERT USER) ---
   useEffect(() => {
     if (!isClient) return;
 
-    // 1. Tải file nhạc ngay lập tức bằng Fetch (Bỏ qua cơ chế lười của trình duyệt)
-    fetch(AUDIO_BATTLE_THEME)
-        .then(response => response.blob())
-        .then(blob => {
-            const url = URL.createObjectURL(blob);
-            setAudioBlobUrl(url); // Lưu link Blob nội bộ
-            console.log("Audio downloaded ready!");
-        })
-        .catch(err => console.log("Audio fetch error:", err));
-
-    // 2. Video Force Play
-    if (videoRef.current) {
-        videoRef.current.muted = true;
-        videoRef.current.playsInline = true;
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.play().catch(() => {});
-    }
-  }, [isClient]);
-
-  // --- GLOBAL UNLOCK ---
-  useEffect(() => {
-    if (!isClient) return;
     const unlock = () => {
-        // Unlock Audio
+        // 1. Audio: Mở khóa và Play ngay lập tức
         if (audioRef.current) {
-            // Nếu đã tải xong blob, gán vào và play
-            if (audioRef.current.paused) {
-                audioRef.current.play()
-                    .then(() => setIsMuted(false))
-                    .catch(() => {});
-            }
+            audioRef.current.muted = false; // Bắt buộc Unmute trước
+            audioRef.current.play()
+                .then(() => setIsMuted(false)) // Cập nhật icon
+                .catch((e) => console.log("Audio blocked (waiting for interaction)"));
         }
-        // Unlock Video
+        
+        // 2. Video: Force Play nếu chưa chạy
         if (videoRef.current && videoRef.current.paused) {
             videoRef.current.play().catch(() => {});
         }
     };
-    window.addEventListener('click', unlock);
-    window.addEventListener('touchstart', unlock);
-    return () => { 
-        window.removeEventListener('click', unlock); 
-        window.removeEventListener('touchstart', unlock); 
-    };
-  }, [isClient, audioBlobUrl]); // Re-run khi audioBlobUrl có
 
+    // Gắn sự kiện vào document để bắt mọi cú chạm
+    window.addEventListener("click", unlock);
+    window.addEventListener("touchstart", unlock);
+    return () => {
+        window.removeEventListener("click", unlock);
+        window.removeEventListener("touchstart", unlock);
+    };
+  }, [isClient]);
+
+  // Nút Loa (Chỉ toggle state, việc play đã do unlock lo)
   const toggleSound = () => {
     if (!audioRef.current) return;
-    if (audioRef.current.paused || audioRef.current.muted) {
+    if (audioRef.current.muted || audioRef.current.paused) {
         audioRef.current.muted = false;
         audioRef.current.play().catch(()=>{});
         setIsMuted(false);
@@ -245,7 +231,7 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, player: publicKey, systemProgram: web3.SystemProgram.programId,
       }).rpc();
       
-      // Đảm bảo tiếng nổ ngay
+      // Force Sound Again
       if(audioRef.current) {
           audioRef.current.muted = false;
           audioRef.current.play().catch(()=>{});
@@ -275,6 +261,7 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
       }).rpc();
       
+      // CHỈ HIỆN MODAL
       setTimeout(() => {
           const isWinner = publicKey.toString() === game.lastFeeder.toString();
           setWinnerModal({
@@ -315,29 +302,30 @@ function GameContent() {
     <div className={`relative w-full h-screen overflow-hidden ${isHit ? 'shake-active' : ''}`}>
       <style>{styles}</style>
       
-      {/* THẺ AUDIO NÂNG CẤP:
-          - src={audioBlobUrl || AUDIO_BATTLE_THEME}: Nếu đã tải xong Blob thì dùng Blob (siêu nhanh), chưa thì dùng link gốc.
-      */}
+      {/* THẺ AUDIO CỐ ĐỊNH - KHÔNG DÙNG STATE ĐỂ RENDER */}
       <audio 
         ref={audioRef} 
-        src={audioBlobUrl || AUDIO_BATTLE_THEME} 
-        loop 
+        src={AUDIO_BATTLE_THEME} 
         preload="auto" 
+        loop 
       />
 
+      {/* BACKGROUND FIX GHOSTING */}
       <div className="bg-container">
+          {/* Lớp 1: Ảnh (Sẽ ẩn khi Video chạy) */}
           <img 
             src={VIDEO_POSTER} 
             className={`bg-poster ${isVideoPlaying ? 'hidden' : ''}`} 
             alt="poster" 
           />
+          
+          {/* Lớp 2: Video (Đè lên) - BỎ THUỘC TÍNH POSTER TRONG THẺ VIDEO */}
           <video 
             ref={videoRef} 
-            className="bg-video" 
-            poster={VIDEO_POSTER} 
+            className="bg-video"
             autoPlay loop muted playsInline 
             preload="auto"
-            onPlay={() => setIsVideoPlaying(true)}
+            onPlay={() => setIsVideoPlaying(true)} // Khi chạy -> Set state ẩn ảnh đi
           >
               <source src={VIDEO_BG} type="video/mp4" />
           </video>
