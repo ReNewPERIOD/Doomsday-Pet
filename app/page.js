@@ -23,7 +23,7 @@ const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 
-/* =================== CSS (AN TOÀN TUYỆT ĐỐI) =================== */
+/* =================== CSS (SMOOTH VIDEO & NO-GHOSTING) =================== */
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap');
@@ -35,7 +35,6 @@ const styles = `
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* CHỈ RUNG NHÂN VẬT, KHÔNG RUNG TRANG WEB */
   @keyframes shake {
     0% { transform: translate(0, 0); }
     25% { transform: translate(-5px, 5px); }
@@ -66,31 +65,39 @@ const styles = `
     text-shadow: 0 0 5px #000; animation: marquee 30s linear infinite; padding-left: 100%; 
   }
 
-  /* --- CƠ CHẾ HIỂN THỊ NỀN: LAYER STACKING --- */
-  /* Lớp 1: Ảnh tĩnh (Luôn hiện, cứu cánh khi video lỗi) */
-  .bg-poster-img {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; z-index: 0;
+  /* --- VIDEO FIX: SMOOTH FADE IN --- */
+  .video-container {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    background-image: url('${VIDEO_POSTER}'); 
+    background-size: cover; background-position: center;
+    z-index: -1; pointer-events: none;
+    background-color: #000; /* Nền đen dự phòng */
   }
-  /* Lớp 2: Video (Đè lên ảnh nếu load được) */
+  
   .bg-video { 
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    object-fit: cover; z-index: 1; 
+    width: 100%; height: 100%; object-fit: cover; 
     filter: brightness(0.9);
+    opacity: 0; /* Mặc định ẩn để tránh nháy hình */
+    transition: opacity 0.8s ease-in; /* Hiện dần trong 0.8s */
+  }
+  
+  .bg-video.loaded {
+    opacity: 1; /* Khi load xong thì hiện lên */
   }
 
-  /* LAYERS GAME */
+  .game-layer { position: absolute; width: 100%; height: 100%; top: 0; left: 0; pointer-events: none; }
+
   .hero-layer { 
     position: absolute; right: 5%; bottom: 15%; width: 25%; max-width: 250px; 
-    z-index: 10; pointer-events: none; filter: drop-shadow(0 0 20px #00e5ff); 
+    z-index: 10; filter: drop-shadow(0 0 20px #00e5ff); 
   }
   .fist-layer { 
     position: absolute; right: 8%; bottom: 18%; width: 25%; max-width: 350px; 
-    z-index: 20; pointer-events: none; filter: drop-shadow(0 0 10px #00e5ff);
+    z-index: 20; filter: drop-shadow(0 0 10px #00e5ff);
     transform-origin: bottom right; animation: punch-mid 1.2s infinite ease-in-out !important; 
   }
 
-  /* WINNER MODAL */
+  /* MODAL */
   .winner-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.9); z-index: 99999; 
@@ -105,7 +112,7 @@ const styles = `
   @media (max-width: 768px) {
     .hero-layer { width: 35%; bottom: 12%; right: -5%; }
     .fist-layer { width: 45%; bottom: 15%; right: 0%; } 
-    .bg-video { object-position: center center; } 
+    .bg-video, .video-container { object-position: center center; } 
     .marquee-text { font-size: 9px; animation-duration: 25s; } 
   }
 `;
@@ -125,13 +132,15 @@ function GameContent() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [armor, setArmor] = useState(100);
   const [isClient, setIsClient] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
+  const [isMuted, setIsMuted] = useState(false); // Mặc định hiển thị icon tắt tiếng cho đến khi user bấm
   const [isHit, setIsHit] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
+  const [videoLoaded, setVideoLoaded] = useState(false); // State để kiểm soát video fade-in
   
   const [winnerModal, setWinnerModal] = useState({ show: false, title: "", msg: "" });
   const [topHitters, setTopHitters] = useState([{ address: 'Wait...', hits: 0 }]);
+  
   const audioRef = useRef(null);
   const videoRef = useRef(null);
 
@@ -146,20 +155,46 @@ function GameContent() {
 
   useEffect(() => { setIsClient(true); }, []);
 
+  // --- AUDIO FIX: TỰ BẬT KHI CHẠM MÀN HÌNH ---
   useEffect(() => {
     if (!isClient) return;
+    
     audioRef.current = new Audio(AUDIO_BATTLE_THEME);
     audioRef.current.volume = 0.6;
     audioRef.current.loop = true;
-    audioRef.current.play().catch(() => {}); 
 
-    // Mobile Video Fix
-    if (videoRef.current) {
-        videoRef.current.muted = true;
-        videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.play().catch(e => {});
-    }
+    const enableAudio = () => {
+        if (audioRef.current && audioRef.current.paused) {
+            audioRef.current.play()
+                .then(() => setIsMuted(false)) // Cập nhật icon loa
+                .catch(() => {});
+        }
+        // Xóa sự kiện sau lần chạm đầu tiên để đỡ tốn bộ nhớ
+        window.removeEventListener('click', enableAudio);
+        window.removeEventListener('touchstart', enableAudio);
+    };
+
+    // Lắng nghe mọi cú chạm
+    window.addEventListener('click', enableAudio);
+    window.addEventListener('touchstart', enableAudio);
+
+    return () => {
+        window.removeEventListener('click', enableAudio);
+        window.removeEventListener('touchstart', enableAudio);
+    };
   }, [isClient]);
+
+  // --- VIDEO FIX: FADE IN KHI LOAD XONG ---
+  useEffect(() => {
+    if (!isClient || !videoRef.current) return;
+    videoRef.current.muted = true;
+    videoRef.current.setAttribute('playsinline', 'true');
+    videoRef.current.play().catch(() => {});
+  }, [isClient]);
+
+  const onVideoReady = () => {
+      setVideoLoaded(true); // Khi video sẵn sàng -> Set class để hiện dần lên
+  };
 
   const toggleSound = () => {
     if (!audioRef.current) return;
@@ -204,22 +239,24 @@ function GameContent() {
   const isWaiting = game && game.lastFedTimestamp.toNumber() === 0;
   const isDead = timeLeft === 0 && !isWaiting;
 
-  // --- ACTIONS (PURE LOGIC - NO EFFECTS BEFORE WALLET) ---
+  // --- ACTIONS ---
   const smash = async () => {
     if (!program || !publicKey || isProcessing) return;
-    
-    // 1. Chỉ hiện chữ, không làm gì DOM cả để tránh mất focus ví
     setIsProcessing(true);
     setStatusMsg("CONFIRM WALLET...");
 
     try {
-      // 2. GỌI VÍ NGAY LẬP TỨC
+      // Gọi Ví trước
       await program.methods.feed().accounts({
           gameAccount: GAME_ADDRESS, player: publicKey, systemProgram: web3.SystemProgram.programId,
       }).rpc();
       
-      // 3. Ký xong -> Mới chạy hiệu ứng
-      if(audioRef.current && !isMuted) audioRef.current.play().catch(()=>{});
+      // Ký xong -> Rung + Nhạc
+      if(audioRef.current && audioRef.current.paused) {
+          audioRef.current.play().catch(()=>{});
+          setIsMuted(false);
+      }
+      
       setIsHit(true); 
       setTimeout(() => setIsHit(false), 300);
 
@@ -229,7 +266,7 @@ function GameContent() {
 
     } catch (e) {
       console.error(e);
-      alert("Failed: " + e.message); // Mobile cần alert đơn giản nếu lỗi
+      alert("Failed: " + e.message);
       setStatusMsg("");
     } finally { setIsProcessing(false); }
   };
@@ -246,8 +283,7 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
       }).rpc();
       
-      // KHÔNG CÒN HIỆU ỨNG VÀNG -> TRÁNH CRASH 100%
-      
+      // Bỏ hiệu ứng vàng để tránh crash, chỉ hiện Modal
       setTimeout(() => {
           const isWinner = publicKey.toString() === game.lastFeeder.toString();
           setWinnerModal({
@@ -289,27 +325,27 @@ function GameContent() {
     <div className="relative w-full h-screen overflow-hidden">
       <style>{styles}</style>
       
-      {/* FIX MÀN HÌNH ĐEN: Dùng 2 lớp chồng lên nhau
-         Lớp 1: Ảnh (Luôn hiện)
-         Lớp 2: Video (Đè lên nếu load được)
-      */}
-      <img src={VIDEO_POSTER} className="bg-poster-img" alt="bg" />
-      <video 
-        ref={videoRef} 
-        className="bg-video" 
-        autoPlay loop muted playsInline 
-        preload="auto"
-      >
-          <source src={VIDEO_BG} type="video/mp4" />
-      </video>
+      {/* VIDEO CONTAINER: Ảnh nền luôn hiện, Video hiện sau khi load xong */}
+      <div className="video-container">
+          <video 
+            ref={videoRef} 
+            className={`bg-video ${videoLoaded ? 'loaded' : ''}`} // Thêm class 'loaded' khi onCanPlay kích hoạt
+            poster={VIDEO_POSTER} 
+            autoPlay loop muted playsInline 
+            preload="auto"
+            onCanPlay={onVideoReady} // <--- Sự kiện quan trọng để fix lỗi ghosting
+          >
+              <source src={VIDEO_BG} type="video/mp4" />
+          </video>
+      </div>
 
-      {/* GAME LAYER: Chỉ rung lớp này */}
-      <div className={`absolute top-0 left-0 w-full h-full ${isHit ? 'shake-active' : ''}`} style={{zIndex: 5}}>
+      {/* GAME LAYER */}
+      <div className={`game-layer ${isHit ? 'shake-active' : ''}`} style={{zIndex: 5}}>
           {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
           {(!isDead && !isWaiting) && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
       </div>
 
-      {/* UI LAYER: Đứng yên */}
+      {/* UI LAYER */}
       <div className="marquee-container">
           <div className="marquee-text">
               📢 ALL PLAYERS PARTICIPATING IN WAGMI KOMBAT WILL RECEIVE 2000 $KOMBAT TOKENS AIRDROP AFTER 1 WEEK! 🚀 PLAY NOW TO EARN! 💎
