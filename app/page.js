@@ -5,9 +5,7 @@ import { Connection, PublicKey, clusterApiUrl } from "@solana/web3.js";
 import { Program, AnchorProvider, web3 } from "@project-serum/anchor";
 import idl from "./idl.json";
 
-// KHÔNG DÙNG CONFETTI ĐỂ TRÁNH CRASH
-// import confetti from "canvas-confetti"; 
-
+// IMPORT VÍ
 import { PhantomWalletAdapter } from "@solana/wallet-adapter-wallets"; 
 import { useAnchorWallet, useWallet, ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { WalletModalProvider, WalletMultiButton } from "@solana/wallet-adapter-react-ui";
@@ -25,7 +23,7 @@ const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 
-/* =================== CSS (FIXED Z-INDEX STACKING) =================== */
+/* =================== CSS (CLEAN & POWERFUL SHAKE) =================== */
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap');
@@ -37,40 +35,50 @@ const styles = `
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* --- CẤU TRÚC Z-INDEX CHUẨN (THEO CHỈ ĐẠO CỦA BẠN) --- */
+  /* --- CẤU TRÚC Z-INDEX CHUẨN (GIỮ NGUYÊN) --- */
   
-  /* 1. CONTAINER CHÍNH: Z-INDEX = 0 (KHÔNG ĐỂ -1 NỮA) */
+  /* 1. CONTAINER CHÍNH: Z-INDEX = 0 */
   .bg-container {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-    z-index: 0; /* <--- FIXED: ĐƯA VỀ 0 */
+    z-index: 0; 
     background-color: #000;
   }
 
-  /* 2. ẢNH POSTER (SIBLING): Z-INDEX = 0 (Nằm dưới) */
+  /* 2. ẢNH POSTER (SIBLING): Z-INDEX = 0 */
   .bg-poster {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; 
     z-index: 0; 
   }
 
-  /* 3. VIDEO (SIBLING): Z-INDEX = 1 (Nằm trên ảnh) */
+  /* 3. VIDEO (SIBLING): Z-INDEX = 1 */
   .bg-video { 
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; 
-    z-index: 1; /* <--- VIDEO ĐÈ LÊN POSTER */
-    filter: brightness(0.9);
+    z-index: 1; /* Video đè lên Poster */
+    /* ĐÃ BỎ FILTER BRIGHTNESS ĐỂ HẾT SHADOW/TỐI */
   }
 
-  /* 4. GAME UI LAYER: Z-INDEX = 10 (Nằm trên cùng) */
+  /* 4. GAME UI LAYER: Z-INDEX = 10 */
   .game-ui { 
     position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
-    z-index: 10; /* <--- UI CAO HƠN HẲN */
+    z-index: 10; 
     pointer-events: none; 
   }
 
-  /* --- ANIMATIONS & COMPONENTS --- */
-  @keyframes shake { 0% { transform: translate(0, 0); } 25% { transform: translate(-5px, 5px); } 75% { transform: translate(5px, -5px); } 100% { transform: translate(0, 0); } }
-  .shake-active { animation: shake 0.2s ease-in-out; }
+  /* --- HIỆU ỨNG RUNG MÀN HÌNH (IMPACT SHAKE) --- */
+  @keyframes heavy-shake {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(-10px, 10px) rotate(-1deg); }
+    50% { transform: translate(10px, -5px) rotate(1deg); }
+    75% { transform: translate(-5px, 5px) rotate(0deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+  }
+  
+  /* Class này sẽ được add vào thẻ cha ngoài cùng */
+  .shake-active { 
+    animation: heavy-shake 0.3s cubic-bezier(.36,.07,.19,.97) both; 
+  }
   
   @keyframes punch-mid { 0% { transform: translate(0, 0) scale(1); } 50% { transform: translate(-30vw, -20vh) scale(1.3); } 100% { transform: translate(0, 0) scale(1); } }
 
@@ -223,14 +231,19 @@ function GameContent() {
     setStatusMsg("CONFIRM WALLET...");
 
     try {
+      // 1. Gọi Ví
       await program.methods.feed().accounts({
           gameAccount: GAME_ADDRESS, player: publicKey, systemProgram: web3.SystemProgram.programId,
       }).rpc();
       
+      // 2. Kích hoạt hiệu ứng sau khi ký thành công
       if(audioRef.current) audioRef.current.play().catch(()=>{});
       if(videoRef.current) videoRef.current.play().catch(()=>{});
 
-      setIsHit(true); setTimeout(() => setIsHit(false), 300);
+      // RUNG MÀN HÌNH (isHit kích hoạt class .shake-active ở div ngoài cùng)
+      setIsHit(true); 
+      setTimeout(() => setIsHit(false), 300);
+
       setStatusMsg("HIT CONFIRMED!");
       setTimeout(() => setStatusMsg(""), 2000);
       setTimeout(fetchGameState, 1000);
@@ -253,7 +266,6 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
       }).rpc();
       
-      // CHỈ HIỆN MODAL
       setTimeout(() => {
           const isWinner = publicKey.toString() === game.lastFeeder.toString();
           setWinnerModal({
@@ -291,20 +303,21 @@ function GameContent() {
   if (!isClient) return null;
 
   return (
-    <div className="relative w-full h-screen overflow-hidden">
+    // 🔥 HIỆU ỨNG RUNG ĐƯỢC ÁP DỤNG CHO TOÀN BỘ KHUNG NÀY 🔥
+    <div className={`relative w-full h-screen overflow-hidden ${isHit ? 'shake-active' : ''}`}>
       <style>{styles}</style>
       
-      {/* CẤU TRÚC Z-INDEX CHUẨN ĐƯỢC BẠN YÊU CẦU:
-         1. CONTAINER (Z=0)
-         2. IMAGE (Z=0, SIBLING)
-         3. VIDEO (Z=1, SIBLING)
+      {/* CẤU TRÚC Z-INDEX CHUẨN (GIỮ NGUYÊN CODE CHẠY TỐT):
+         1. Container Z=0
+         2. Poster Z=0
+         3. Video Z=1 (Đè lên poster)
       */}
       <div className="bg-container">
           <img src={VIDEO_POSTER} className="bg-poster" alt="poster" />
           <video 
             ref={videoRef} 
             className="bg-video" 
-            poster={VIDEO_POSTER}
+            poster={VIDEO_POSTER} 
             autoPlay loop muted playsInline 
             preload="auto"
           >
@@ -312,7 +325,7 @@ function GameContent() {
           </video>
       </div>
 
-      <div className={`game-ui ${isHit ? 'shake-active' : ''}`}>
+      <div className="game-ui">
           {!isDead && <img src={IMG_HERO} className="hero-layer" alt="Hero" />}
           {(!isDead && !isWaiting) && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
       </div>
