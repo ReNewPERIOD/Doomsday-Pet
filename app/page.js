@@ -23,7 +23,7 @@ const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 
-/* =================== CSS (Z-INDEX FIX + NO GHOSTING) =================== */
+/* =================== CSS (GPU OPTIMIZED) =================== */
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap');
@@ -47,13 +47,18 @@ const styles = `
     object-fit: cover; z-index: 0; 
     transition: opacity 0.5s ease-out;
   }
-  /* Khi video chạy thì ẩn ảnh đi để tránh bị rung hình */
   .bg-poster.hidden { opacity: 0; }
 
-  /* 2. VIDEO (Z=1) - NẰM TRÊN ẢNH */
+  /* 2. VIDEO (Z=1) - GPU OPTIMIZED */
   .bg-video { 
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; z-index: 1;
+    
+    /* 🔥 TECH EXPERT OPTIMIZATION 🔥 */
+    will-change: transform; /* Báo trước cho trình duyệt */
+    transform: translateZ(0); /* Kích hoạt GPU Compositing */
+    backface-visibility: hidden; /* Fix nháy hình */
+    pointer-events: none; /* Bỏ tương tác để nhẹ máy */
   }
 
   /* UI LAYER (Z=10) */
@@ -118,12 +123,10 @@ function GameContent() {
   const [armor, setArmor] = useState(100);
   const [isClient, setIsClient] = useState(false);
   
-  // Audio state
-  const [isMuted, setIsMuted] = useState(true); 
+  // 🔥 TECH EXPERT AUDIO STATE 🔥
+  const [soundOn, setSoundOn] = useState(true); // Logic Bật/Tắt mới
   
-  // Video state (để ẩn ảnh poster)
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
-
   const [isHit, setIsHit] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
@@ -143,44 +146,68 @@ function GameContent() {
 
   useEffect(() => { setIsClient(true); }, []);
 
-  // --- AUDIO UNLOCK (PATCH TỪ EXPERT USER) ---
+  // --- 1. GLOBAL UNLOCK (CHẠY 1 LẦN DUY NHẤT) ---
   useEffect(() => {
     if (!isClient) return;
 
     const unlock = () => {
-        // 1. Audio: Mở khóa và Play ngay lập tức
-        if (audioRef.current) {
-            audioRef.current.muted = false; // Bắt buộc Unmute trước
-            audioRef.current.play()
-                .then(() => setIsMuted(false)) // Cập nhật icon
-                .catch((e) => console.log("Audio blocked (waiting for interaction)"));
+        // Audio Unlock
+        const audio = audioRef.current;
+        if (audio) {
+            audio.muted = false;
+            audio.volume = 1;
+            audio.play().catch(() => {}); // Chỉ catch, không log rác
         }
         
-        // 2. Video: Force Play nếu chưa chạy
+        // Video Force Play (Nếu chưa chạy)
         if (videoRef.current && videoRef.current.paused) {
             videoRef.current.play().catch(() => {});
         }
+
+        // Hủy lắng nghe ngay lập tức để tiết kiệm RAM
+        window.removeEventListener("touchstart", unlock);
+        window.removeEventListener("click", unlock);
     };
 
-    // Gắn sự kiện vào document để bắt mọi cú chạm
-    window.addEventListener("click", unlock);
-    window.addEventListener("touchstart", unlock);
-    return () => {
-        window.removeEventListener("click", unlock);
-        window.removeEventListener("touchstart", unlock);
-    };
+    window.addEventListener("touchstart", unlock, { once: true });
+    window.addEventListener("click", unlock, { once: true });
   }, [isClient]);
 
-  // Nút Loa (Chỉ toggle state, việc play đã do unlock lo)
-  const toggleSound = () => {
-    if (!audioRef.current) return;
-    if (audioRef.current.muted || audioRef.current.paused) {
-        audioRef.current.muted = false;
-        audioRef.current.play().catch(()=>{});
-        setIsMuted(false);
+  // --- 2. BATTERY & VISIBILITY OPTIMIZER (CHỐNG CRASH) ---
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+        const video = videoRef.current;
+        if (!video) return;
+
+        if (document.hidden) {
+            // User ẩn tab hoặc mở ví -> Pause video để tiết kiệm GPU
+            video.pause();
+        } else {
+            // User quay lại -> Resume
+            video.play().catch(() => {});
+        }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, []);
+
+  // --- 3. LOGIC NÚT LOA CHUYÊN NGHIỆP ---
+  const toggleAudio = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (soundOn) {
+        // TẮT: Chỉ Mute + Giảm Volume, KHÔNG Pause (để giữ AudioContext)
+        audio.muted = true;
+        audio.volume = 0;
+        setSoundOn(false);
     } else {
-        audioRef.current.muted = true;
-        setIsMuted(true);
+        // BẬT: Unmute + Tăng Volume + Đảm bảo Play
+        audio.muted = false;
+        audio.volume = 1;
+        audio.play().catch(() => {});
+        setSoundOn(true);
     }
   };
 
@@ -231,11 +258,11 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, player: publicKey, systemProgram: web3.SystemProgram.programId,
       }).rpc();
       
-      // Force Sound Again
-      if(audioRef.current) {
+      // Force Audio state nếu cần
+      if (soundOn && audioRef.current) {
           audioRef.current.muted = false;
+          audioRef.current.volume = 1;
           audioRef.current.play().catch(()=>{});
-          setIsMuted(false);
       }
 
       setIsHit(true); setTimeout(() => setIsHit(false), 300);
@@ -261,7 +288,6 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
       }).rpc();
       
-      // CHỈ HIỆN MODAL
       setTimeout(() => {
           const isWinner = publicKey.toString() === game.lastFeeder.toString();
           setWinnerModal({
@@ -302,30 +328,31 @@ function GameContent() {
     <div className={`relative w-full h-screen overflow-hidden ${isHit ? 'shake-active' : ''}`}>
       <style>{styles}</style>
       
-      {/* THẺ AUDIO CỐ ĐỊNH - KHÔNG DÙNG STATE ĐỂ RENDER */}
+      {/* SINGLETON AUDIO: Quản lý tập trung, preload auto, loop vĩnh viễn 
+          src tĩnh để tránh reload
+      */}
       <audio 
         ref={audioRef} 
         src={AUDIO_BATTLE_THEME} 
         preload="auto" 
         loop 
+        muted // Mặc định muted để autoplay không bị chặn
+        playsInline
       />
 
-      {/* BACKGROUND FIX GHOSTING */}
       <div className="bg-container">
-          {/* Lớp 1: Ảnh (Sẽ ẩn khi Video chạy) */}
           <img 
             src={VIDEO_POSTER} 
             className={`bg-poster ${isVideoPlaying ? 'hidden' : ''}`} 
             alt="poster" 
           />
-          
-          {/* Lớp 2: Video (Đè lên) - BỎ THUỘC TÍNH POSTER TRONG THẺ VIDEO */}
           <video 
             ref={videoRef} 
-            className="bg-video"
+            className="bg-video" 
+            poster={VIDEO_POSTER} // Giữ poster ở đây như fallback cuối cùng
             autoPlay loop muted playsInline 
             preload="auto"
-            onPlay={() => setIsVideoPlaying(true)} // Khi chạy -> Set state ẩn ảnh đi
+            onPlay={() => setIsVideoPlaying(true)}
           >
               <source src={VIDEO_BG} type="video/mp4" />
           </video>
@@ -343,8 +370,9 @@ function GameContent() {
       </div>
 
       <div className="absolute top-2 left-2 right-2 flex justify-between items-start z-50 pointer-events-auto">
-        <button onClick={toggleSound} className="w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 bg-black/60 text-[#00e5ff] rounded-full md:rounded-lg border border-[#00e5ff] font-['Rajdhani'] font-bold flex items-center justify-center backdrop-blur-md">
-          {isMuted ? "🔇" : "🔊"}
+        {/* NÚT LOA MỚI - LOGIC EXPERT */}
+        <button onClick={toggleAudio} className="w-8 h-8 md:w-auto md:h-auto md:px-4 md:py-2 bg-black/60 text-[#00e5ff] rounded-full md:rounded-lg border border-[#00e5ff] font-['Rajdhani'] font-bold flex items-center justify-center backdrop-blur-md">
+          {soundOn ? "🔊" : "🔇"}
         </button>
 
         <div className="flex flex-col items-end gap-1 md:gap-2">
