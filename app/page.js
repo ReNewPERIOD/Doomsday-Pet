@@ -14,6 +14,7 @@ import "@solana/wallet-adapter-react-ui/styles.css";
 
 /* =================== CẤU HÌNH =================== */
 const PROGRAM_ID = new PublicKey("CrwC7ekPmUmmuQPutMzBXqQ4MTydjw1EVS2Zs3wpk9fc");
+// Đảm bảo địa chỉ này là địa chỉ Game mới nhất bạn tạo
 const GAME_ADDRESS = new PublicKey("AeMy2SpyKG2fyEESiEsWRtj6JsRUrXQrC4MwjZj2AnR4");
 
 /* Assets */
@@ -24,7 +25,7 @@ const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 
-/* =================== CSS (FIXED CRASH & BLINKING) =================== */
+/* =================== CSS (MOBILE OPTIMIZED) =================== */
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap');
@@ -35,7 +36,6 @@ const styles = `
     overflow: hidden; background: #000; touch-action: none;
   }
 
-  /* Rung: Chỉ rung Game Stage, không rung toàn bộ Body */
   @keyframes shake {
     0% { transform: translate(0, 0); }
     25% { transform: translate(-5px, 5px); }
@@ -73,14 +73,14 @@ const styles = `
     background-size: cover; background-position: center;
     z-index: 0;
   }
-  .bg-video { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.9); }
-
-  /* GAME STAGE: Lớp chứa Video + Nhân vật (Sẽ bị rung khi đấm) */
-  .game-stage {
-    position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0;
+  .bg-video { 
+    width: 100%; height: 100%; object-fit: cover; 
+    filter: brightness(0.9);
   }
 
   /* LAYERS */
+  .game-stage { position: relative; width: 100%; height: 100%; }
+
   .hero-layer { 
     position: absolute; right: 5%; bottom: 15%; width: 25%; max-width: 250px; 
     z-index: 10; pointer-events: none; filter: drop-shadow(0 0 20px #00e5ff); 
@@ -91,23 +91,17 @@ const styles = `
     transform-origin: bottom right; animation: punch-mid 1.2s infinite ease-in-out !important; 
   }
 
-  /* WINNER MODAL */
+  /* WINNER MODAL (MOBILE SAFE) */
   .winner-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.9); z-index: 99999; 
     display: flex; justify-content: center; align-items: center;
-    animation: fadeIn 0.5s;
   }
   .winner-box {
-    background: linear-gradient(180deg, #1a1a1a, #000);
-    border: 4px solid #FFD700; border-radius: 20px;
-    padding: 30px; text-align: center;
-    box-shadow: 0 0 50px #FFD700;
-    max-width: 90%;
-    animation: popIn 0.5s;
+    background: #111; border: 2px solid #FFD700; border-radius: 15px;
+    padding: 20px; text-align: center; width: 85%;
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
   }
-  @keyframes popIn { 0% { transform: scale(0.8); opacity:0; } 100% { transform: scale(1); opacity:1;} }
-  @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
 
   @media (max-width: 768px) {
     .hero-layer { width: 35%; bottom: 12%; right: -5%; }
@@ -145,10 +139,14 @@ function GameContent() {
   const audioRef = useRef(null);
   const videoRef = useRef(null);
 
+  // Thêm options commitment để connect ổn định hơn
   const program = useMemo(() => {
     if (!wallet) return null;
-    const connection = new Connection(clusterApiUrl("devnet"), "processed");
-    const provider = new AnchorProvider(connection, wallet, { preflightCommitment: "processed" });
+    const connection = new Connection(clusterApiUrl("devnet"), "confirmed"); // Dùng 'confirmed' thay vì 'processed'
+    const provider = new AnchorProvider(connection, wallet, { 
+        preflightCommitment: "confirmed",
+        commitment: "confirmed"
+    });
     return new Program(idl, PROGRAM_ID, provider);
   }, [wallet]);
 
@@ -164,7 +162,7 @@ function GameContent() {
     if (videoRef.current) {
         videoRef.current.muted = true;
         videoRef.current.setAttribute('playsinline', 'true');
-        videoRef.current.play().catch(e => console.log("Video autoplay blocked:", e));
+        videoRef.current.play().catch(e => {});
     }
   }, [isClient]);
 
@@ -174,20 +172,25 @@ function GameContent() {
     else { audioRef.current.pause(); setIsMuted(true); }
   };
 
-  /* --- HIỆU ỨNG VÀNG (LITE VERSION CHO MOBILE) --- */
+  /* --- HIỆU ỨNG VÀNG AN TOÀN (MOBILE SAFE) --- */
   const triggerGoldExplosion = () => {
-    // Chỉ bắn 1 lần, ít hạt hơn để tránh crash trên Phantom Mobile
-    const colors = ['#FFD700', '#FFA500', '#FFFFFF'];
-    
-    confetti({
-        particleCount: 50, // Giảm số lượng hạt
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: colors,
-        scalar: 2, // Hạt vẫn to
-        zIndex: 99999,
-        disableForReducedMotion: true // Tắt vật lý phức tạp
-    });
+    // Chỉ bắn 1 lần duy nhất (Single Shot) để không quá tải CPU điện thoại
+    const count = 100;
+    const defaults = { origin: { y: 0.7 }, zIndex: 99999 };
+
+    function fire(particleRatio, opts) {
+      confetti({
+        ...defaults,
+        ...opts,
+        particleCount: Math.floor(count * particleRatio)
+      });
+    }
+
+    fire(0.25, { spread: 26, startVelocity: 55 });
+    fire(0.2, { spread: 60 });
+    fire(0.35, { spread: 100, decay: 0.91, scalar: 0.8 });
+    fire(0.1, { spread: 120, startVelocity: 25, decay: 0.92, scalar: 1.2 });
+    fire(0.1, { spread: 120, startVelocity: 45 });
   };
 
   const fetchGameState = useCallback(async () => {
@@ -227,30 +230,32 @@ function GameContent() {
   const isWaiting = game && game.lastFedTimestamp.toNumber() === 0;
   const isDead = timeLeft === 0 && !isWaiting;
 
-  // --- ACTIONS ---
+  // --- ACTIONS (FIX LỖI KÝ VÍ) ---
   const smash = async () => {
     if (!program || !publicKey || isProcessing) return;
     
-    // 🔥 FIX QUAN TRỌNG: Không kích hoạt rung ngay lập tức
-    // Điều này giúp Ví Phantom hiện lên mà không bị DOM thay đổi làm mất focus
+    // Tắt rung, tắt tiếng trước khi gọi ví để tránh nhiễu
     setIsProcessing(true);
-    setStatusMsg("WAITING WALLET...");
+    setStatusMsg("CONFIRMING...");
 
     try {
-      if(audioRef.current && audioRef.current.paused && !isMuted) audioRef.current.play();
-      
-      // Gọi Smart Contract trước
+      // Gọi Smart Contract TRƯỚC (Đây là blocking action)
       await program.methods.feed().accounts({
           gameAccount: GAME_ADDRESS, player: publicKey, systemProgram: web3.SystemProgram.programId,
       }).rpc();
       
-      // Sau khi ký thành công mới Rung màn hình
+      // Ký xong mới chạy hiệu ứng (An toàn tuyệt đối)
+      if(audioRef.current && !isMuted) audioRef.current.play().catch(()=>{});
+      
       setIsHit(true); 
-      setTimeout(() => setIsHit(false), 200);
+      setTimeout(() => setIsHit(false), 300); // Rung nhẹ
 
-      setStatusMsg("HIT CONFIRMED!");
-      setTimeout(() => setStatusMsg(""), 2000);
+      setStatusMsg("SUCCESS!");
+      setTimeout(() => setStatusMsg(""), 1500);
+      
+      // Update state chậm lại 1 chút để chain kịp sync
       setTimeout(fetchGameState, 1000);
+
     } catch (e) {
       console.error(e);
       alert("Failed: " + e.message);
@@ -270,9 +275,10 @@ function GameContent() {
           gameAccount: GAME_ADDRESS, hunter: publicKey, winner: game.lastFeeder,
       }).rpc();
       
+      // Trigger effect
       triggerGoldExplosion();
 
-      // Delay 1.5s rồi hiện Modal
+      // Hiện Modal sau 1s
       setTimeout(() => {
           const isWinner = publicKey.toString() === game.lastFeeder.toString();
           setWinnerModal({
@@ -280,9 +286,9 @@ function GameContent() {
               title: isWinner ? "🏆 CHAMPION! 🏆" : "⚡ FAST HANDS! ⚡",
               msg: isWinner ? "CONGRATULATIONS! YOU HAVE WON THE BATTLE!" : "NICE SNIPE! YOU GRABBED THE BOUNTY!"
           });
-      }, 1500);
+      }, 1000);
       
-      setStatusMsg("GAME RESETTING...");
+      setStatusMsg("RESETTING...");
       setTimeout(fetchGameState, 3000);
       
     } catch (e) {
@@ -297,7 +303,7 @@ function GameContent() {
                 triggerGoldExplosion();
                 setTimeout(() => {
                     setWinnerModal({ show: true, title: "🏆 SUCCESS!", msg: "BOUNTY CLAIMED VERIFIED!" });
-                }, 1500);
+                }, 1000);
                 setTimeout(fetchGameState, 3000);
              } catch (retryErr) { alert("⚠️ Blockchain delay. Please click Claim again!"); } 
              finally { setIsProcessing(false); setStatusMsg(""); }
@@ -317,9 +323,7 @@ function GameContent() {
     <div className="relative w-full h-screen overflow-hidden">
       <style>{styles}</style>
       
-      {/* GAME STAGE: Chỉ lớp này bị rung (animate-shake)
-         Điều này đảm bảo Nút Ví và Popup không bị rung theo -> Fix lỗi mất ví 
-      */}
+      {/* GAME STAGE: Chỉ rung phần này */}
       <div className={`game-stage ${isHit ? 'shake-active' : ''}`}>
           <div className="video-container">
               <video 
@@ -337,7 +341,7 @@ function GameContent() {
           {(!isDead && !isWaiting) && <img src={IMG_FIST} className="fist-layer" alt="Fist" />}
       </div>
 
-      {/* CÁC THÀNH PHẦN UI (NẰM NGOÀI GAME STAGE ĐỂ KHÔNG BỊ RUNG) */}
+      {/* UI LAYERS (Tách biệt khỏi game stage để không bị rung) */}
       
       <div className="marquee-container">
           <div className="marquee-text">
