@@ -23,7 +23,7 @@ const AUDIO_BATTLE_THEME = "https://files.catbox.moe/ind1d6.mp3";
 const IMG_HERO = "https://img.upanh.moe/HTQcpVQD/web3-removebg-webp.webp";
 const IMG_FIST = "https://img.upanh.moe/1fdsF7NQ/FIST2-removebg-webp.webp";
 
-/* =================== CSS (CLEAN & POWERFUL SHAKE) =================== */
+/* =================== CSS (NO SHADOW - BRIGHT & CLEAR) =================== */
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700;800&display=swap');
@@ -35,38 +35,36 @@ const styles = `
     -webkit-tap-highlight-color: transparent;
   }
 
-  /* --- CẤU TRÚC Z-INDEX CHUẨN (GIỮ NGUYÊN) --- */
-  
-  /* 1. CONTAINER CHÍNH: Z-INDEX = 0 */
+  /* --- CẤU TRÚC NỀN CHUẨN --- */
   .bg-container {
     position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
     z-index: 0; 
     background-color: #000;
   }
 
-  /* 2. ẢNH POSTER (SIBLING): Z-INDEX = 0 */
+  /* ẢNH POSTER: Z-INDEX 0 */
   .bg-poster {
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; 
     z-index: 0; 
   }
 
-  /* 3. VIDEO (SIBLING): Z-INDEX = 1 */
+  /* VIDEO: Z-INDEX 1 (Đè lên ảnh) */
   .bg-video { 
     position: absolute; top: 0; left: 0; width: 100%; height: 100%;
     object-fit: cover; 
-    z-index: 1; /* Video đè lên Poster */
-    /* ĐÃ BỎ FILTER BRIGHTNESS ĐỂ HẾT SHADOW/TỐI */
+    z-index: 1;
+    /* 🔥 ĐÃ XÓA FILTER BRIGHTNESS -> KHÔNG CÒN BÓNG ĐEN 🔥 */
   }
 
-  /* 4. GAME UI LAYER: Z-INDEX = 10 */
+  /* GAME UI: Z-INDEX 10 */
   .game-ui { 
     position: absolute; width: 100%; height: 100%; top: 0; left: 0; 
     z-index: 10; 
     pointer-events: none; 
   }
 
-  /* --- HIỆU ỨNG RUNG MÀN HÌNH (IMPACT SHAKE) --- */
+  /* --- HIỆU ỨNG RUNG MẠNH (IMPACT SHAKE) --- */
   @keyframes heavy-shake {
     0% { transform: translate(0, 0) rotate(0deg); }
     25% { transform: translate(-10px, 10px) rotate(-1deg); }
@@ -75,7 +73,7 @@ const styles = `
     100% { transform: translate(0, 0) rotate(0deg); }
   }
   
-  /* Class này sẽ được add vào thẻ cha ngoài cùng */
+  /* Class rung áp dụng cho container ngoài cùng */
   .shake-active { 
     animation: heavy-shake 0.3s cubic-bezier(.36,.07,.19,.97) both; 
   }
@@ -161,7 +159,7 @@ function GameContent() {
     audioRef.current.volume = 0.6;
     audioRef.current.loop = true;
 
-    // Video: Force Play
+    // Video
     if (videoRef.current) {
         videoRef.current.muted = true;
         videoRef.current.playsInline = true;
@@ -231,16 +229,14 @@ function GameContent() {
     setStatusMsg("CONFIRM WALLET...");
 
     try {
-      // 1. Gọi Ví
       await program.methods.feed().accounts({
           gameAccount: GAME_ADDRESS, player: publicKey, systemProgram: web3.SystemProgram.programId,
       }).rpc();
       
-      // 2. Kích hoạt hiệu ứng sau khi ký thành công
       if(audioRef.current) audioRef.current.play().catch(()=>{});
       if(videoRef.current) videoRef.current.play().catch(()=>{});
 
-      // RUNG MÀN HÌNH (isHit kích hoạt class .shake-active ở div ngoài cùng)
+      // Kích hoạt Rung
       setIsHit(true); 
       setTimeout(() => setIsHit(false), 300);
 
@@ -303,14 +299,14 @@ function GameContent() {
   if (!isClient) return null;
 
   return (
-    // 🔥 HIỆU ỨNG RUNG ĐƯỢC ÁP DỤNG CHO TOÀN BỘ KHUNG NÀY 🔥
+    // ÁP DỤNG CLASS RUNG CHO TOÀN BỘ TRANG WEB
     <div className={`relative w-full h-screen overflow-hidden ${isHit ? 'shake-active' : ''}`}>
       <style>{styles}</style>
       
-      {/* CẤU TRÚC Z-INDEX CHUẨN (GIỮ NGUYÊN CODE CHẠY TỐT):
-         1. Container Z=0
-         2. Poster Z=0
-         3. Video Z=1 (Đè lên poster)
+      {/* CẤU TRÚC Z-INDEX CHUẨN:
+         1. CONTAINER (Z=0)
+         2. POSTER (Z=0, SIBLING)
+         3. VIDEO (Z=1, SIBLING) -> Sẽ đè lên Poster
       */}
       <div className="bg-container">
           <img src={VIDEO_POSTER} className="bg-poster" alt="poster" />
